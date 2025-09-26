@@ -6,7 +6,19 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddDbContext<ConnContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("CadenaContext"))); 
+    options.UseSqlServer(builder.Configuration.GetConnectionString("CadenaContext")));
+
+builder.Services.AddDbContext<ConnContextCTACTE>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("CadenaContextCTATE")));
+
+builder.Services.AddDbContext<ConnContextSICM>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("CadenaContextSICM")));
+
+builder.Services.AddDbContext<ConnContextSEPULTA>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("CadenaContextSEPULTA")));
+
+builder.Services.AddDbContext<ConnContextSICMPBI>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("CadenaContextSICMPBI")));
 
 
 builder.Services.AddControllers();
