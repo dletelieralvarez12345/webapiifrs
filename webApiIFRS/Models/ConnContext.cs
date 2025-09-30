@@ -17,7 +17,7 @@ namespace webApiIFRS.Models
         //entidades se alinea con una tabla de la BD y una entidad corresponde 
         //a una fila individual dentro de la tabla.
         public DbSet<Contrato> Contrato { get; set; } = null;
-        public DbSet<Ingresos_Diferidos> IngresosDiferidos { get; set; } = null;
+        public DbSet<IngresosDiferidos> IngresosDiferidos { get; set; } = null;
         public DbSet<InteresesPorDevengar> InteresesPorDevengar { get; set; } = null;
         public DbSet<PagoRealizado> PagosRealizados { get; set; } = null;
         public DbSet<PagosRealizadosTerreno> pagosRealizadosTerreno { get; set; } = null;
@@ -236,6 +236,88 @@ namespace webApiIFRS.Models
                         p.num_contrato,
                         (object?)p.fecha_primer_vcto ?? DBNull.Value,
                         (object?)p.fecha_vto_cuota ?? DBNull.Value
+                );
+            }
+
+            return dt;
+        }
+
+        public async Task<DataTable> ObtenerInteresPorDev_ListadoContratosYsusCuotas(int anio)
+        {
+            DataTable dt = new DataTable();
+
+            var interesPorDevengar = await InteresesPorDevengar
+                .FromSqlInterpolated($"EXEC SP_IFRS_LISTA_INTERES_POR_DEVENGAR {anio}")
+                .ToListAsync();
+
+            dt.Columns.Add("int_id", typeof(int));
+            dt.Columns.Add("int_num_con", typeof(string));
+            dt.Columns.Add("int_correlativo", typeof(string));
+            dt.Columns.Add("int_nro_cuota", typeof(int));
+            dt.Columns.Add("int_saldo_inicial", typeof(int));
+            dt.Columns.Add("int_tasa_interes", typeof(int));
+            dt.Columns.Add("int_cuota_final", typeof(int));
+            dt.Columns.Add("int_abono_a_capital", typeof(int));
+            dt.Columns.Add("int_saldo_final", typeof(int));
+            dt.Columns.Add("int_estado_cuota", typeof(int));
+            dt.Columns.Add("int_fecha_pago", typeof(DateTime));
+            dt.Columns.Add("int_fecha_vcto", typeof(DateTime));
+            dt.Columns.Add("int_fecha_contab", typeof(DateTime));
+            dt.Columns.Add("int_estado_contab", typeof(int));
+            dt.Columns.Add("int_tipo_movimiento", typeof(string));
+            dt.Columns.Add("int_cuotas_pactadas_mod", typeof(int)); 
+
+            foreach (var p in interesPorDevengar)
+            {
+                dt.Rows.Add(
+                    p.int_id,
+                    p.int_num_con,
+                    p.int_correlativo,
+                    p.int_nro_cuota,
+                    p.int_saldo_inicial,
+                    p.int_tasa_interes,
+                    p.int_cuota_final,
+                    p.int_abono_a_capital,
+                    p.int_saldo_final,
+                    p.int_estado_cuota,
+                    (object?)p.int_fecha_pago ?? DBNull.Value,
+                    (object?)p.int_fecha_vcto ?? DBNull.Value,
+                    (object?)p.int_fecha_contab ?? DBNull.Value,
+                    p.int_estado_contab, 
+                    p.int_tipo_movimiento, 
+                    p.int_cuotas_pactadas_mod
+                );
+            }
+
+            return dt;
+        }
+
+        public async Task<DataTable> ObtenerIngresosDiferidos_ListaCuotas(int anio)
+        {
+            DataTable dt = new DataTable(); 
+
+            var ingresosDiferidos = await IngresosDiferidos
+                .FromSqlInterpolated($"EXEC SP_IFRS_LISTA_INGRESOS_DIFERIDOS {anio}")
+                .ToListAsync();
+
+            dt.Columns.Add("ing_id", typeof(int));  
+            dt.Columns.Add("ing_num_con", typeof(string));
+            dt.Columns.Add("ing_precio_base", typeof(int));
+            dt.Columns.Add("ing_nro_cuota", typeof(int));
+            dt.Columns.Add("ing_interes_diferido", typeof(int));
+            dt.Columns.Add("ing_fecha_contab", typeof(DateTime));
+            dt.Columns.Add("ing_estado_contab", typeof(int));
+
+            foreach(var p in ingresosDiferidos)
+            {
+                dt.Rows.Add(
+                    p.ing_id,
+                    p.ing_num_con,
+                    p.ing_precio_base,
+                    p.ing_nro_cuota,
+                    p.ing_interes_diferido,
+                    (object?)p.ing_fecha_contab ?? DBNull.Value,
+                    p.ing_estado_contab
                 );
             }
 
