@@ -347,14 +347,17 @@ namespace webApiIFRS.Controllers
 
                         if (!existeCuota)
                         {
-                            DataRow filaNuevaIng = dtIngresosDiferidos.NewRow();
-                            filaNuevaIng["ing_num_con"] = dtContratos.Rows[i]["con_num_con"].ToString();
-                            filaNuevaIng["ing_nro_cuota"] = cuota;
-                            filaNuevaIng["ing_precio_base"] = precioBase;
-                            filaNuevaIng["ing_interes_diferido"] = interesDiferido;
-                            filaNuevaIng["ing_fecha_contab"] = GetUltimoDiaDelMes(fechaVtoOriginal.AddMonths(cuota - 1));
-                            filaNuevaIng["ing_estado_contab"] = 0;
-                            dtIngresosDiferidos.Rows.Add(filaNuevaIng);
+                            if (interesDiferido > 0)
+                            {
+                                DataRow filaNuevaIng = dtIngresosDiferidos.NewRow();
+                                filaNuevaIng["ing_num_con"] = dtContratos.Rows[i]["con_num_con"].ToString();
+                                filaNuevaIng["ing_nro_cuota"] = cuota;
+                                filaNuevaIng["ing_precio_base"] = precioBase;
+                                filaNuevaIng["ing_interes_diferido"] = interesDiferido;
+                                filaNuevaIng["ing_fecha_contab"] = GetUltimoDiaDelMes(fechaVtoOriginal.AddMonths(cuota - 1));
+                                filaNuevaIng["ing_estado_contab"] = 0;
+                                dtIngresosDiferidos.Rows.Add(filaNuevaIng);
+                            }
                         }
                     }
                 }
@@ -785,9 +788,10 @@ namespace webApiIFRS.Controllers
                 double resultado = ((potencia - 1) * monto) / (potencia * tasaInteres);
 
                 // Redondeo al múltiplo de 10,000 más cercano y conversión a entero
-                //double resultadoFinal = (int)redondearExcel(resultado, -4);
-                //valorActual = resultadoFinal;
-                valorActual = resultado;
+                /********************CONSIDERAR REDONDEO SOLO CONTRATOS DE 2025 HACIA ATRAS********************/
+                double resultadoFinal = (int)redondearExcel(resultado, -4);
+                valorActual = resultadoFinal;
+                //valorActual = resultado;
             }
             return valorActual;
         }
@@ -829,6 +833,12 @@ namespace webApiIFRS.Controllers
 
         }
 
+        public static double redondearExcel(double value, int digits)
+        {
+            double pow = Math.Pow(10, digits);
+            return Math.Truncate(value * pow + Math.Sign(value) * 0.5) / pow;
+
+        }
 
         # region "VALIDADORES EN CASO DE NULL O VACIO"
         private static int GetIntValue(DataRow row, string columnName)
