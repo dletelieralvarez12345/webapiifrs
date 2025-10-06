@@ -4,6 +4,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualBasic;
 using System.Data;
+using System.Linq;
 using System.Text.Json.Serialization;
 using webApiIFRS.Models;
 using static System.Net.Mime.MediaTypeNames;
@@ -101,7 +102,7 @@ namespace webApiIFRS.Controllers
 
         //lista ingresos diferidos de un contrato
         [HttpGet("GetIngresosDiferidosByContrato/{ing_num_con}")]
-        public async Task<ActionResult<IngresosDiferidos>> GetIngresosDiferidosByContrato(string ing_num_con)
+        public async Task<ActionResult<IngresosDiferidosNichos>> GetIngresosDiferidosByContrato(string ing_num_con)
         {
             if (_connContext.InteresesPorDevengar == null)
             {
@@ -128,6 +129,7 @@ namespace webApiIFRS.Controllers
             }
 
             DataTable dtContratos = new DataTable();
+            DataTable dtContratosOriginal = new DataTable();
             DataTable dtPagosRealizados = new DataTable();
             DataTable dtPagosRealizadosTerreno = new DataTable();
             DataTable dtModificaciones = new DataTable();
@@ -143,20 +145,115 @@ namespace webApiIFRS.Controllers
             DateTime fechaUltPagoCuotaMod = new DateTime();
 
             var interesesPorDevengar = new List<InteresesPorDevengar>();
-            var ingresosDiferidos = new List<IngresosDiferidos>();
+            var ingresosDiferidos = new List<IngresosDiferidosNichos>();
             double tasaInteres = 2.0 / 100;
 
             /*OBTENER TODOS LOS CONTRATOS*/
-            dtContratos = await _connContext.ListaContratosPorAnio(2025);
+            dtContratos = await _connContext.ListaIngresosDeVentasAllContratos();  //await _connContext.ListaContratosPorAnio(2025);
+            dtContratosOriginal = await _connContext.ListaContratosPorAnio(2025);
+            /*CONTRATOS QUE SE DUPLICAN EN dtContratos*/
+            var contratosDuplicados = dtContratos.AsEnumerable()
+                .GroupBy(r => r.Field<string>("con_num_con"))
+                .Where(gr => gr.Count() > 1)
+                .Select(g => g.Key)
+                .ToHashSet();
+            /*DATATABLE SIN LOS DUPLICADOS*/
+            var dtSinDuplicados = dtContratos.AsEnumerable()
+                .Where(r => !contratosDuplicados.Contains(r.Field<string>("con_num_con")))
+                .CopyToDataTable();
+            /*REEMPLAZA EL DT ORIGINAL*/
+            dtContratos = dtContratos.AsEnumerable()
+                .Where(r => !contratosDuplicados.Contains(r.Field<string>("con_num_con")))
+                .CopyToDataTable();
+
+            /*OBTENGO TODA LA INFORMACION MENOS TOTAL_VENTA PARA LOS CONTRATOS DUPLICADOS Y SE AGREGAN LOS CONTRATOS QUE ESTABAN DUPLICADOS AHORA CALCULANDO SU TOTALVENTA*/
+            foreach (var con in contratosDuplicados)
+            {
+                var busqueda = dtContratosOriginal.AsEnumerable()
+                    .Where(row => row.Field<string>("con_num_con") == con)
+                    .FirstOrDefault();
+        
+                DataRow filaNew = dtContratos.NewRow();
+                int pie = int.Parse(busqueda[6].ToString()); 
+                int cuotasPactadas = int.Parse(busqueda[8].ToString()); 
+                int valorCuota = int.Parse(busqueda[9].ToString());
+                filaNew["con_num_con"] = busqueda[1].ToString();
+                filaNew["con_id_tipo_ingreso"] = busqueda[2].ToString();
+                filaNew["con_fecha_ingreso"] = busqueda[3].ToString();
+                filaNew["con_total_venta"] = pie + (cuotasPactadas * valorCuota);
+                filaNew["con_precio_base"] = busqueda[5].ToString();
+                filaNew["con_pie"] = pie;
+                filaNew["con_total_credito"] = busqueda[7].ToString();
+                filaNew["con_cuotas_pactadas"] = cuotasPactadas;
+                filaNew["con_valor_cuota_pactada"] = valorCuota;
+                filaNew["con_tasa_interes"] = busqueda[10].ToString();
+                filaNew["con_capacidad_sepultura"] = busqueda[11].ToString();
+                filaNew["con_tipo_compra"] = busqueda[12].ToString();
+                filaNew["con_terminos_pago"] = busqueda[13].ToString();
+                filaNew["con_nombre_cajero"] = busqueda[14].ToString();
+                filaNew["con_fecha_primer_vcto_ori"] = busqueda[15].ToString();
+                filaNew["con_tipo_movimiento"] = busqueda[16].ToString();
+                filaNew["con_cuotas_pactadas_mod"] = busqueda[17].ToString();
+                filaNew["con_estado_contrato"] = busqueda[18].ToString();
+                filaNew["con_num_repactaciones"] = busqueda[19].ToString();
+                filaNew["con_anos_arriendo"] = busqueda[20].ToString();
+                dtContratos.Rows.Add(filaNew);                
+            }
+
+            /*YA CON EL DATATABLE LIMPIO SIN DUPLICADOS Y CON EL MONTO TOTAL VENTA, PROCEDO A INSERTARLOS A LA BD*/
+            int contratosGuardados = 0;
+            foreach (DataRow row in dtContratos.Rows)
+            {
+                Contrato contrato = new Contrato
+                {
+                    con_num_con = GetStringValue(row, "con_num_con"),
+                    con_id_tipo_ingreso = GetIntValue(row, "con_id_tipo_ingreso"),
+                    con_fecha_ingreso = GetDateValue(row, "con_fecha_ingreso"),
+                    con_total_venta = GetIntValue(row, "con_total_venta"),
+                    con_precio_base = GetIntValue(row, "con_precio_base"),
+                    con_pie = GetIntValue(row, "con_pie"),
+                    con_total_credito = GetIntValue(row, "con_total_credito"),
+                    con_cuotas_pactadas = GetIntValue(row, "con_cuotas_pactadas"),
+                    con_valor_cuota_pactada = GetIntValue(row, "con_valor_cuota_pactada"),
+                    con_tasa_interes = GetIntValue(row, "con_tasa_interes"),
+                    con_capacidad_sepultura = GetIntValue(row, "con_capacidad_sepultura"),
+                    con_tipo_compra = GetStringValue(row, "con_tipo_compra"),
+                    con_terminos_pago = GetStringValue(row, "con_terminos_pago"),
+                    con_nombre_cajero = GetStringValue(row, "con_nombre_cajero"),
+                    con_fecha_primer_vcto_ori = GetDateValue(row, "con_fecha_primer_vcto_ori"),
+                    con_tipo_movimiento = GetIntValue(row, "con_tipo_movimiento"),
+                    con_cuotas_pactadas_mod = GetIntValue(row, "con_cuotas_pactadas_mod"),
+                    con_estado_contrato = GetStringValue(row, "con_estado_contrato"),
+                    con_num_repactaciones = GetIntValue(row, "con_num_repactaciones"),
+                    con_anos_arriendo = GetIntValue(row, "con_anos_arriendo")
+                }; 
+                await _connContext.Contrato.AddAsync(contrato);
+            }
+
+            try
+            {
+                contratosGuardados = await _connContext.SaveChangesAsync();
+                dtContratos = await _connContext.ListaIngresosDeVentasAllContratos();
+            }
+            catch(Exception ex)
+            {
+
+            }
+
+            /**************************/
+    
+            
+
             /*VERIFICAR EL ESTADO DE LAS CUOTAS*/
             dtPagosRealizados = await _connContext.ObtenerPagosRealizados(2025);
             dtPagosRealizadosTerreno = await _connContext.ObtenerPagosRealizadosTerreno(2025);
             dtModificaciones = await _connContext.ObtenerModificaciones(2025);
             dtFechaPrimerVto = await _connContext.ObtenerFechaPrimerVctoBov(2025);
             dtInteresPorDevParaValidar = await _connContext.ObtenerInteresPorDev_ListadoContratosYsusCuotas(2025);
-            dtIngresosDiferidosParaValidar = await _connContext.ObtenerIngresosDiferidos_ListaCuotas(2025);
+            dtIngresosDiferidosParaValidar = await _connContext.ObtenerIngresosDiferidosNichos_ListaCuotas(2025);
 
             /*PARA SABER CUANTOS REGISTROS SE INSERTARON*/
+            int registrosContratosGuardados = 0;
             int registrosInteresesEsperados = 0;
             int registrosInteresesInsertados = 0;
             int registrosInteresesYaExisten = 0; 
@@ -199,6 +296,19 @@ namespace webApiIFRS.Controllers
                     int interesDiferido = 0;
                     int mesesArriendo = 0;
                     int precioBase = int.Parse(dtContratos.Rows[i]["con_precio_base"].ToString());
+
+                    /*****TEMPORALIDAD NICHOS****/
+                       /*
+                        codigo 1 = 5 años
+                        2 = 10 años
+                        3 = perpetuo
+                        4 = 2 años
+                        5 = 1 año
+                        6 = doble perpetuo 
+                        7 = 50 años
+                        8 = 3 años                        
+                        */
+                    /****************************/
 
                     if (int.Parse(dtContratos.Rows[i]["con_id_tipo_ingreso"].ToString()) == 1 && int.Parse(dtContratos.Rows[i]["con_anos_arriendo"].ToString()) > 0)
                     {
@@ -596,9 +706,10 @@ namespace webApiIFRS.Controllers
                         double saldoInicial = 0;
 
                         var totalCreditoContrato = dtContratos.AsEnumerable()
-                                .Where(row => row.Field<string>("con_num_con") == (string)dtInteresPorDev.Rows[i]["int_num_con"])
+                                .Where(row => row.Field<string>("con_num_con") == (string)dtInteresPorDev.Rows[i]["int_num_con"] && row.Field<int>("con_cuotas_pactadas") > 0)
                                 .Select(row => row.Field<int>("con_total_credito"))
-                                .ToList();
+                                .FirstOrDefault();
+                                //.ToList();
 
                         //si el total del credito es 0 tomamos el total credito del contrato
                         if (Convert.ToInt32(dtInteresPorDev.Rows[i - 1]["int_saldo_final"]) == 0)
@@ -726,7 +837,7 @@ namespace webApiIFRS.Controllers
 
                         if (!existeCuota)
                         {
-                            IngresosDiferidos ingresos = new IngresosDiferidos
+                            IngresosDiferidosNichos ingresos = new IngresosDiferidosNichos
                             {
                                 ing_num_con = GetStringValue(row, "ing_num_con"),
                                 ing_precio_base = GetIntValue(row, "ing_precio_base"),
@@ -754,6 +865,7 @@ namespace webApiIFRS.Controllers
 
                 return Ok(new
                 {
+                    registrosContratosGuardados = interesesGuardados,
                     registrosInteresesEsperados = dtInteresPorDev.Rows.Count,
                     registrosInteresesInsertados = interesesGuardados,
                     registrosInteresesYaExisten = 0,

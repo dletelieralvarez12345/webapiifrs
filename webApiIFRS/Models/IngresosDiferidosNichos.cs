@@ -3,8 +3,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace webApiIFRS.Models
 {
-    [Table("INGRESOS_DIFERIDOS")]
-    public class IngresosDiferidos
+    [Table("INGRESOS_DIFERIDOS_NICHOS")]
+    public class IngresosDiferidosNichos
     {
         [Key]
         public int ing_id { get; set; }
@@ -16,7 +16,7 @@ namespace webApiIFRS.Models
         public int ing_estado_contab { get; set; }
         public DateTime ing_fecha { get; set; }
 
-        public IngresosDiferidos() { 
+        public IngresosDiferidosNichos() { 
             ing_id = 0;
             ing_num_con = string.Empty; 
             ing_precio_base = 0;

@@ -17,7 +17,7 @@ namespace webApiIFRS.Models
         //entidades se alinea con una tabla de la BD y una entidad corresponde 
         //a una fila individual dentro de la tabla.
         public DbSet<Contrato> Contrato { get; set; } = null;
-        public DbSet<IngresosDiferidos> IngresosDiferidos { get; set; } = null;
+        public DbSet<IngresosDiferidosNichos> IngresosDiferidos { get; set; } = null;
         public DbSet<InteresesPorDevengar> InteresesPorDevengar { get; set; } = null;
         public DbSet<PagoRealizado> PagosRealizados { get; set; } = null;
         public DbSet<PagosRealizadosTerreno> pagosRealizadosTerreno { get; set; } = null;
@@ -77,7 +77,7 @@ namespace webApiIFRS.Models
             dt.Columns.Add("con_fecha_primer_vcto_ori", typeof(DateTime));
             dt.Columns.Add("con_tipo_movimiento", typeof(int));
             dt.Columns.Add("con_cuotas_pactadas_mod", typeof(int));
-            dt.Columns.Add("con_estado_contrato", typeof(int));
+            dt.Columns.Add("con_estado_contrato", typeof(string));
             dt.Columns.Add("con_num_repactaciones", typeof(int));   
             dt.Columns.Add("con_anos_arriendo", typeof(int));
 
@@ -110,6 +110,66 @@ namespace webApiIFRS.Models
 
             return dt;
         }
+
+        public async Task<DataTable> ListaIngresosDeVentasAllContratos()
+        {
+            DataTable dt = new DataTable();
+            var contratos = await Contrato
+                .FromSqlInterpolated($"EXEC SP_IFRS_INGRESOS_DE_VENTAS_ALL_CONTRATOS")
+                .ToListAsync();
+
+            dt.Columns.Add("con_id", typeof(int));
+            dt.Columns.Add("con_num_con", typeof(string));
+            dt.Columns.Add("con_id_tipo_ingreso", typeof(int));
+            dt.Columns.Add("con_fecha_ingreso", typeof(DateTime));
+            dt.Columns.Add("con_total_venta", typeof(int));
+            dt.Columns.Add("con_precio_base", typeof(int));
+            dt.Columns.Add("con_pie", typeof(int));
+            dt.Columns.Add("con_total_credito", typeof(int));
+            dt.Columns.Add("con_cuotas_pactadas", typeof(int));
+            dt.Columns.Add("con_valor_cuota_pactada", typeof(int));
+            dt.Columns.Add("con_tasa_interes", typeof(int));
+            dt.Columns.Add("con_capacidad_sepultura", typeof(int));
+            dt.Columns.Add("con_tipo_compra", typeof(string));
+            dt.Columns.Add("con_terminos_pago", typeof(string));
+            dt.Columns.Add("con_nombre_cajero", typeof(string));
+            dt.Columns.Add("con_fecha_primer_vcto_ori", typeof(DateTime));
+            dt.Columns.Add("con_tipo_movimiento", typeof(int));
+            dt.Columns.Add("con_cuotas_pactadas_mod", typeof(int));
+            dt.Columns.Add("con_estado_contrato", typeof(string));
+            dt.Columns.Add("con_num_repactaciones", typeof(int));
+            dt.Columns.Add("con_anos_arriendo", typeof(int));
+
+            foreach (var x in contratos)
+            {
+                dt.Rows.Add(
+                    x.con_id,
+                    x.con_num_con,
+                    x.con_id_tipo_ingreso,
+                    (object?)x.con_fecha_ingreso ?? DBNull.Value,
+                    x.con_total_venta,
+                    x.con_precio_base,
+                    x.con_pie,
+                    x.con_total_credito,
+                    x.con_cuotas_pactadas,
+                    x.con_valor_cuota_pactada,
+                    x.con_tasa_interes,
+                    x.con_capacidad_sepultura,
+                    x.con_tipo_compra,
+                    x.con_terminos_pago,
+                    x.con_nombre_cajero,
+                    (object?)x.con_fecha_primer_vcto_ori ?? DBNull.Value,
+                    x.con_tipo_movimiento,
+                    x.con_cuotas_pactadas_mod,
+                    x.con_estado_contrato,
+                    x.con_num_repactaciones,
+                    x.con_anos_arriendo
+                );
+            }
+
+            return dt;
+        }
+
 
         public async Task<DataTable> ObtenerPagosRealizados(int anio)
         {
@@ -292,12 +352,12 @@ namespace webApiIFRS.Models
             return dt;
         }
 
-        public async Task<DataTable> ObtenerIngresosDiferidos_ListaCuotas(int anio)
+        public async Task<DataTable> ObtenerIngresosDiferidosNichos_ListaCuotas(int anio)
         {
             DataTable dt = new DataTable(); 
 
             var ingresosDiferidos = await IngresosDiferidos
-                .FromSqlInterpolated($"EXEC SP_IFRS_LISTA_INGRESOS_DIFERIDOS {anio}")
+                .FromSqlInterpolated($"EXEC SP_IFRS_LISTA_INGRESOS_DIFERIDOS_NICHOS {anio}")
                 .ToListAsync();
 
             dt.Columns.Add("ing_id", typeof(int));  
