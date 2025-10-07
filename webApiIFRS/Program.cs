@@ -6,7 +6,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddDbContext<ConnContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("CadenaContext")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("CadenaContext"))
+        .EnableSensitiveDataLogging()
+        .LogTo(Console.WriteLine, LogLevel.Information));
 
 builder.Services.AddDbContext<ConnContextCTACTE>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("CadenaContextCTATE")));

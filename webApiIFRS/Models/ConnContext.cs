@@ -114,10 +114,10 @@ namespace webApiIFRS.Models
         public async Task<DataTable> ListaIngresosDeVentasAllContratos()
         {
             DataTable dt = new DataTable();
-            var contratos = await Contrato
-                .FromSqlInterpolated($"EXEC SP_IFRS_INGRESOS_DE_VENTAS_ALL_CONTRATOS")
+            var contratos = await Set<Contrato>()
+                .FromSqlRaw("EXEC SP_IFRS_INGRESOS_DE_VENTAS_ALL_CONTRATOS")
                 .ToListAsync();
-
+            
             dt.Columns.Add("con_id", typeof(int));
             dt.Columns.Add("con_num_con", typeof(string));
             dt.Columns.Add("con_id_tipo_ingreso", typeof(int));
@@ -128,7 +128,7 @@ namespace webApiIFRS.Models
             dt.Columns.Add("con_total_credito", typeof(int));
             dt.Columns.Add("con_cuotas_pactadas", typeof(int));
             dt.Columns.Add("con_valor_cuota_pactada", typeof(int));
-            dt.Columns.Add("con_tasa_interes", typeof(int));
+            dt.Columns.Add("con_tasa_interes", typeof(decimal));
             dt.Columns.Add("con_capacidad_sepultura", typeof(int));
             dt.Columns.Add("con_tipo_compra", typeof(string));
             dt.Columns.Add("con_terminos_pago", typeof(string));
@@ -158,7 +158,7 @@ namespace webApiIFRS.Models
                     x.con_tipo_compra,
                     x.con_terminos_pago,
                     x.con_nombre_cajero,
-                    (object?)x.con_fecha_primer_vcto_ori ?? DBNull.Value,
+                    (object?)x.con_fecha_primer_vcto_ori ?? "1990-01-01",
                     x.con_tipo_movimiento,
                     x.con_cuotas_pactadas_mod,
                     x.con_estado_contrato,

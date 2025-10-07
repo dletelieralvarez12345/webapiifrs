@@ -150,7 +150,7 @@ namespace webApiIFRS.Controllers
 
             /*OBTENER TODOS LOS CONTRATOS*/
             dtContratos = await _connContext.ListaIngresosDeVentasAllContratos();  //await _connContext.ListaContratosPorAnio(2025);
-            dtContratosOriginal = await _connContext.ListaContratosPorAnio(2025);
+            dtContratosOriginal = await _connContext.ListaIngresosDeVentasAllContratos(); //await _connContext.ListaContratosPorAnio(2025);
             /*CONTRATOS QUE SE DUPLICAN EN dtContratos*/
             var contratosDuplicados = dtContratos.AsEnumerable()
                 .GroupBy(r => r.Field<string>("con_num_con"))
@@ -202,38 +202,52 @@ namespace webApiIFRS.Controllers
 
             /*YA CON EL DATATABLE LIMPIO SIN DUPLICADOS Y CON EL MONTO TOTAL VENTA, PROCEDO A INSERTARLOS A LA BD*/
             int contratosGuardados = 0;
-            foreach (DataRow row in dtContratos.Rows)
+            int contContratosExistentes = 0;
+            if (dtContratos.Rows.Count > 0)
             {
-                Contrato contrato = new Contrato
+                foreach (DataRow row in dtContratos.Rows)
                 {
-                    con_num_con = GetStringValue(row, "con_num_con"),
-                    con_id_tipo_ingreso = GetIntValue(row, "con_id_tipo_ingreso"),
-                    con_fecha_ingreso = GetDateValue(row, "con_fecha_ingreso"),
-                    con_total_venta = GetIntValue(row, "con_total_venta"),
-                    con_precio_base = GetIntValue(row, "con_precio_base"),
-                    con_pie = GetIntValue(row, "con_pie"),
-                    con_total_credito = GetIntValue(row, "con_total_credito"),
-                    con_cuotas_pactadas = GetIntValue(row, "con_cuotas_pactadas"),
-                    con_valor_cuota_pactada = GetIntValue(row, "con_valor_cuota_pactada"),
-                    con_tasa_interes = GetIntValue(row, "con_tasa_interes"),
-                    con_capacidad_sepultura = GetIntValue(row, "con_capacidad_sepultura"),
-                    con_tipo_compra = GetStringValue(row, "con_tipo_compra"),
-                    con_terminos_pago = GetStringValue(row, "con_terminos_pago"),
-                    con_nombre_cajero = GetStringValue(row, "con_nombre_cajero"),
-                    con_fecha_primer_vcto_ori = GetDateValue(row, "con_fecha_primer_vcto_ori"),
-                    con_tipo_movimiento = GetIntValue(row, "con_tipo_movimiento"),
-                    con_cuotas_pactadas_mod = GetIntValue(row, "con_cuotas_pactadas_mod"),
-                    con_estado_contrato = GetStringValue(row, "con_estado_contrato"),
-                    con_num_repactaciones = GetIntValue(row, "con_num_repactaciones"),
-                    con_anos_arriendo = GetIntValue(row, "con_anos_arriendo")
-                }; 
-                await _connContext.Contrato.AddAsync(contrato);
+                    bool existeContratoIngresado = dtContratosOriginal.AsEnumerable().Any(x =>
+                    x["con_num_con"].ToString().Trim() == row["con_num_con"].ToString().Trim());
+
+                    if (!existeContratoIngresado)
+                    {
+                        Contrato contrato = new Contrato
+                        {
+                            con_num_con = GetStringValue(row, "con_num_con"),
+                            con_id_tipo_ingreso = GetIntValue(row, "con_id_tipo_ingreso"),
+                            con_fecha_ingreso = GetDateValue(row, "con_fecha_ingreso"),
+                            con_total_venta = GetIntValue(row, "con_total_venta"),
+                            con_precio_base = GetIntValue(row, "con_precio_base"),
+                            con_pie = GetIntValue(row, "con_pie"),
+                            con_total_credito = GetIntValue(row, "con_total_credito"),
+                            con_cuotas_pactadas = GetIntValue(row, "con_cuotas_pactadas"),
+                            con_valor_cuota_pactada = GetIntValue(row, "con_valor_cuota_pactada"),
+                            con_tasa_interes = GetIntValue(row, "con_tasa_interes"),
+                            con_capacidad_sepultura = GetIntValue(row, "con_capacidad_sepultura"),
+                            con_tipo_compra = GetStringValue(row, "con_tipo_compra"),
+                            con_terminos_pago = GetStringValue(row, "con_terminos_pago"),
+                            con_nombre_cajero = GetStringValue(row, "con_nombre_cajero"),
+                            con_fecha_primer_vcto_ori = GetDateValue(row, "con_fecha_primer_vcto_ori"),
+                            con_tipo_movimiento = GetIntValue(row, "con_tipo_movimiento"),
+                            con_cuotas_pactadas_mod = GetIntValue(row, "con_cuotas_pactadas_mod"),
+                            con_estado_contrato = GetStringValue(row, "con_estado_contrato"),
+                            con_num_repactaciones = GetIntValue(row, "con_num_repactaciones"),
+                            con_anos_arriendo = GetIntValue(row, "con_anos_arriendo")
+                        };
+                        await _connContext.Contrato.AddAsync(contrato);
+                    }
+                    else
+                    {
+                        contContratosExistentes++; 
+                    }
+                }
             }
 
             try
             {
                 contratosGuardados = await _connContext.SaveChangesAsync();
-                dtContratos = await _connContext.ListaIngresosDeVentasAllContratos();
+                dtContratos = await _connContext.ListaContratosPorAnio(2025); //.ListaIngresosDeVentasAllContratos();
             }
             catch(Exception ex)
             {
@@ -253,10 +267,14 @@ namespace webApiIFRS.Controllers
             dtIngresosDiferidosParaValidar = await _connContext.ObtenerIngresosDiferidosNichos_ListaCuotas(2025);
 
             /*PARA SABER CUANTOS REGISTROS SE INSERTARON*/
+            int registrosContratosEsperados = 0; 
             int registrosContratosGuardados = 0;
+            int registrosContratosExistentes = 0; 
+
             int registrosInteresesEsperados = 0;
             int registrosInteresesInsertados = 0;
             int registrosInteresesYaExisten = 0; 
+
             int registrosIngresosEsperados = 0;
             int registrosIngresosInsertados = 0;
             int registrosIngresosYaExisten = 0; 
@@ -780,19 +798,29 @@ namespace webApiIFRS.Controllers
                 int contIntDev = 0;
                 if (dtInteresPorDev.Rows.Count > 0)
                 {
+
+                    // Cargar claves existentes desde la base de datos
+                    var clavesExistentes = await _connContext.InteresesPorDevengar
+                        .Select(x => new { x.int_num_con, x.int_nro_cuota })
+                        .ToListAsync();
+
+                    //Crea un HashSet con claves únicas
+                    var hashClaves = new HashSet<(string, int)>(
+                        clavesExistentes.Select(c => (c.int_num_con.Trim(), c.int_nro_cuota))
+                    );
+
                     foreach (DataRow row in dtInteresPorDev.Rows)
                     {
-                        //antes de guardar verificamos si ya existe el registro 
-                        bool existeCuota = dtInteresPorDevParaValidar.AsEnumerable().Any(x =>
-                        x["int_num_con"].ToString().Trim() == row["int_num_con"].ToString().Trim() &&
-                        Convert.ToInt32(x["int_nro_cuota"]) == Convert.ToInt32(row["int_nro_cuota"]));
+                        string numCon = GetStringValue(row, "int_num_con").Trim();
+                        int nroCuota = GetIntValue(row, "int_nro_cuota");
 
-                        if (!existeCuota)
+                        //Valida si ya existe en el HashSet
+                        if (!hashClaves.Contains((numCon, nroCuota)))
                         {
-                            InteresesPorDevengar intereses = new InteresesPorDevengar
+                            var intereses = new InteresesPorDevengar
                             {
-                                int_num_con = GetStringValue(row, "int_num_con"),
-                                int_nro_cuota = GetIntValue(row, "int_nro_cuota"),
+                                int_num_con = numCon,
+                                int_nro_cuota = nroCuota,
                                 int_correlativo = GetIntValue(row, "int_correlativo"),
                                 int_saldo_inicial = GetIntValue(row, "int_saldo_inicial"),
                                 int_tasa_interes = GetIntValue(row, "int_tasa_interes"),
@@ -805,13 +833,56 @@ namespace webApiIFRS.Controllers
                                 int_fecha_contab = GetDateValue(row, "int_fecha_contab"),
                                 int_estado_contab = GetIntValue(row, "int_estado_contab"),
                                 int_tipo_movimiento = GetStringValue(row, "int_tipo_movimiento"),
-                                int_cuotas_pactadas_mod = GetIntValue(row, "int_cuotas_pactadas_mod"), 
+                                int_cuotas_pactadas_mod = GetIntValue(row, "int_cuotas_pactadas_mod"),
                                 int_fecha = DateTime.Now
                             };
+
                             await _connContext.InteresesPorDevengar.AddAsync(intereses);
+
+                            // Opcional: Agregar la nueva clave al HashSet para evitar duplicados en el mismo lote
+                            hashClaves.Add((numCon, nroCuota));
                         }
-                        else { contIntDev++; }
+                        else
+                        {
+                            contIntDev++;
+                        }
                     }
+
+                    // Finalmente, guardar cambios
+                    await _connContext.SaveChangesAsync();
+
+                    //foreach (DataRow row in dtInteresPorDev.Rows)
+                    //{
+                    //    //antes de guardar verificamos si ya existe el registro 
+                    //    bool existeCuota = dtInteresPorDevParaValidar.AsEnumerable().Any(x =>
+                    //    x.Field<string>("int_num_con").Trim() == row.Field<string>("int_num_con").Trim() &&
+                    //    Convert.ToInt32(x.Field<int>("int_nro_cuota")) == Convert.ToInt32(row.Field<int>("int_nro_cuota")));
+
+                    //    if (!existeCuota)
+                    //    {
+                    //        InteresesPorDevengar intereses = new InteresesPorDevengar
+                    //        {
+                    //            int_num_con = GetStringValue(row, "int_num_con"),
+                    //            int_nro_cuota = GetIntValue(row, "int_nro_cuota"),
+                    //            int_correlativo = GetIntValue(row, "int_correlativo"),
+                    //            int_saldo_inicial = GetIntValue(row, "int_saldo_inicial"),
+                    //            int_tasa_interes = GetIntValue(row, "int_tasa_interes"),
+                    //            int_cuota_final = GetIntValue(row, "int_cuota_final"),
+                    //            int_abono_a_capital = GetIntValue(row, "int_abono_a_capital"),
+                    //            int_saldo_final = GetIntValue(row, "int_saldo_final"),
+                    //            int_estado_cuota = GetIntValue(row, "int_estado_cuota"),
+                    //            int_fecha_pago = GetDateValue(row, "int_fecha_pago"),
+                    //            int_fecha_vcto = GetDateValue(row, "int_fecha_vcto"),
+                    //            int_fecha_contab = GetDateValue(row, "int_fecha_contab"),
+                    //            int_estado_contab = GetIntValue(row, "int_estado_contab"),
+                    //            int_tipo_movimiento = GetStringValue(row, "int_tipo_movimiento"),
+                    //            int_cuotas_pactadas_mod = GetIntValue(row, "int_cuotas_pactadas_mod"), 
+                    //            int_fecha = DateTime.Now
+                    //        };
+                    //        await _connContext.InteresesPorDevengar.AddAsync(intereses);
+                    //    }
+                    //    else { contIntDev++; }
+                    //}
 
                     try
                     {
@@ -865,14 +936,18 @@ namespace webApiIFRS.Controllers
 
                 return Ok(new
                 {
-                    registrosContratosGuardados = interesesGuardados,
+                    registrosContratosEsperados = dtContratos.Rows.Count,
+                    registrosContratosGuardados = contratosGuardados,
+                    registrosContratosExistentes = contContratosExistentes, 
+
                     registrosInteresesEsperados = dtInteresPorDev.Rows.Count,
                     registrosInteresesInsertados = interesesGuardados,
                     registrosInteresesYaExisten = 0,
+
                     registrosIngresosEsperados = dtIngresosDiferidos.Rows.Count,
                     registrosIngresosInsertados = ingresosGuardados,
                     registrosIngresosYaExisten = cont
-                });  
+                });   
             }
         }
 
