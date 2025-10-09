@@ -31,6 +31,7 @@ namespace webApiIFRS.Models
             modelBuilder.Entity<PagosRealizadosTerreno>().HasNoKey();
             modelBuilder.Entity<Modificaciones>().HasNoKey();
             modelBuilder.Entity<FechaPrimerVtoBOV>().HasNoKey();
+            modelBuilder.Entity<Contrato>().HasNoKey(); 
         }
 
 
@@ -59,7 +60,7 @@ namespace webApiIFRS.Models
                 .FromSqlInterpolated($"EXEC SP_IFRS_GETCONTRATOS {anio}")
                 .ToListAsync();
 
-            dt.Columns.Add("con_id", typeof(int));
+            //dt.Columns.Add("con_id", typeof(int));
             dt.Columns.Add("con_num_con", typeof(string));
             dt.Columns.Add("con_id_tipo_ingreso", typeof(int));
             dt.Columns.Add("con_fecha_ingreso", typeof(DateTime));
@@ -84,7 +85,7 @@ namespace webApiIFRS.Models
             foreach (var x in contratos)
             {
                 dt.Rows.Add(
-                    x.con_id, 
+                    //x.con_id, 
                     x.con_num_con,
                     x.con_id_tipo_ingreso,
                     (object?)x.con_fecha_ingreso ?? DBNull.Value,
@@ -118,7 +119,7 @@ namespace webApiIFRS.Models
                 .FromSqlRaw("EXEC SP_IFRS_INGRESOS_DE_VENTAS_ALL_CONTRATOS")
                 .ToListAsync();
             
-            dt.Columns.Add("con_id", typeof(int));
+            //dt.Columns.Add("con_id", typeof(int));
             dt.Columns.Add("con_num_con", typeof(string));
             dt.Columns.Add("con_id_tipo_ingreso", typeof(int));
             dt.Columns.Add("con_fecha_ingreso", typeof(DateTime));
@@ -143,7 +144,7 @@ namespace webApiIFRS.Models
             foreach (var x in contratos)
             {
                 dt.Rows.Add(
-                    x.con_id,
+                    //x.con_id,
                     x.con_num_con,
                     x.con_id_tipo_ingreso,
                     (object?)x.con_fecha_ingreso ?? DBNull.Value,

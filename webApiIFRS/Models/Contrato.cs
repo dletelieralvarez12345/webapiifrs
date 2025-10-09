@@ -4,8 +4,8 @@ namespace webApiIFRS.Models
 {
     public class Contrato
     {
-        [Key]
-        public int con_id { get; set; }
+        //[Key]
+        //public int con_id { get; set; }
         public string con_num_con { get; set; }
         public int? con_id_tipo_ingreso { get; set; }
         public DateTime? con_fecha_ingreso { get; set; }
@@ -29,7 +29,7 @@ namespace webApiIFRS.Models
 
         public Contrato()
         {
-            con_id = 0;
+            //con_id = 0;
             con_num_con = string.Empty;
             con_id_tipo_ingreso = 0;
             con_fecha_ingreso = DateTime.Now;
