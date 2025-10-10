@@ -17,6 +17,7 @@ namespace webApiIFRS.Models
         //entidades se alinea con una tabla de la BD y una entidad corresponde 
         //a una fila individual dentro de la tabla.
         public DbSet<Contrato> Contrato { get; set; } = null;
+        public DbSet<ContratoDTO> ContratoDTO { get; set; } = null;
         public DbSet<IngresosDiferidosNichos> IngresosDiferidos { get; set; } = null;
         public DbSet<InteresesPorDevengar> InteresesPorDevengar { get; set; } = null;
         public DbSet<PagoRealizado> PagosRealizados { get; set; } = null;
@@ -31,7 +32,7 @@ namespace webApiIFRS.Models
             modelBuilder.Entity<PagosRealizadosTerreno>().HasNoKey();
             modelBuilder.Entity<Modificaciones>().HasNoKey();
             modelBuilder.Entity<FechaPrimerVtoBOV>().HasNoKey();
-            modelBuilder.Entity<Contrato>().HasNoKey(); 
+            modelBuilder.Entity<ContratoDTO>().HasNoKey();
         }
 
 
@@ -115,10 +116,10 @@ namespace webApiIFRS.Models
         public async Task<DataTable> ListaIngresosDeVentasAllContratos()
         {
             DataTable dt = new DataTable();
-            var contratos = await Set<Contrato>()
+            var contratos = await Set<ContratoDTO>()
                 .FromSqlRaw("EXEC SP_IFRS_INGRESOS_DE_VENTAS_ALL_CONTRATOS")
                 .ToListAsync();
-            
+
             //dt.Columns.Add("con_id", typeof(int));
             dt.Columns.Add("con_num_con", typeof(string));
             dt.Columns.Add("con_id_tipo_ingreso", typeof(int));
@@ -167,10 +168,8 @@ namespace webApiIFRS.Models
                     x.con_anos_arriendo
                 );
             }
-
             return dt;
         }
-
 
         public async Task<DataTable> ObtenerPagosRealizados(int anio)
         {
