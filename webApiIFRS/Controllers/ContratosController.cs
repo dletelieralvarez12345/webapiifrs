@@ -383,10 +383,173 @@ namespace webApiIFRS.Controllers
                     }
 
                     correlativo_int_dev++;
-                    dtInteresPorDev = Paso1_cargaDTInteresesPorDevengar(dtContratos, dtInteresPorDev, correlativo_int_dev, fechaVto, fechaVtoOriginal, i, dtPagosRealizadosTerreno, dtPagosRealizados, valorCuota,
-                        fechaUltPagoCuota, dtModificaciones, saldoInicial);
 
-                    dtIngresosDiferidos = Paso2_cargaDTMesesArriendo(mesesArriendo, dtIngresosDiferidos, dtContratos.Rows[i]["con_num_con"].ToString(), interesDiferido, precioBase, fechaVtoOriginal); 
+                    /*TOMO SOLO LOS CONTRATOS CON CUOTAS MAYOR A CERO PARA GUARDAR LOS INTERESES POR DEVENGAR*/
+                    DataTable dtContratosEnCuotas = new DataTable();
+                    dtContratosEnCuotas = dtContratos.AsEnumerable()
+                        .Where(row => row.Field<int>("con_cuotas_pactadas") > 0)
+                        .CopyToDataTable();
+
+                    string logPath_paso1 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_1_cargaDTInteresesPorDevengar.txt");
+
+                    using (StreamWriter logWriter_paso1 = new StreamWriter(logPath_paso1, append: true))
+                    {                        
+                        for (int i2 = 0; i2 < Convert.ToInt32(dtContratos.Rows[i]["con_cuotas_pactadas"].ToString()); i2++)
+                        {
+                            int numeroCuota = i2 + 1;
+                            try
+                            {
+                                bool existeCuota = dtInteresPorDev.AsEnumerable().Any(row =>
+                                row["int_num_con"].ToString() == dtContratos.Rows[i]["con_num_con"].ToString() &&
+                                row["int_nro_cuota"].ToString() == numeroCuota.ToString());
+
+                                if (!existeCuota)
+                                {
+                                    DataRow filaNuevaInt = dtInteresPorDev.NewRow();
+                                    filaNuevaInt["int_num_con"] = dtContratos.Rows[i]["con_num_con"].ToString();
+                                    filaNuevaInt["int_nro_cuota"] = numeroCuota;
+                                    filaNuevaInt["int_correlativo"] = correlativo_int_dev;
+                                    if (dtContratos.Rows[i]["con_fecha_primer_vcto_ori"] != DBNull.Value)
+                                    {
+                                        if (numeroCuota == 1)
+                                        {
+                                            filaNuevaInt["int_fecha_vcto"] = fechaVto.ToShortDateString();
+                                            filaNuevaInt["int_fecha_contab"] = GetUltimoDiaDelMes(fechaVto);
+                                            filaNuevaInt["int_estado_contab"] = 0;
+                                        }
+                                        else
+                                        {
+                                            filaNuevaInt["int_fecha_vcto"] = fechaVtoOriginal.AddMonths(numeroCuota - 1).ToShortDateString();
+                                            fechaVto = fechaVtoOriginal.AddMonths(numeroCuota - 1);
+                                            filaNuevaInt["int_fecha_contab"] = GetUltimoDiaDelMes(fechaVto);
+                                            filaNuevaInt["int_estado_contab"] = 0;
+                                        }
+                                    }
+                                    //revisamos si tiene cuota en terreno y se resta para cuadrar
+                                    double valorCuotaTerreno = 0;
+                                    DataRow[] busquedaPagoCuotaTerreno = dtPagosRealizadosTerreno.Select("fecha_vto='" + fechaVto + "' and contrato='" + dtContratos.Rows[i]["con_num_con"].ToString() + "'");
+                                    if (busquedaPagoCuotaTerreno.Length > 0)
+                                    {
+                                        valorCuotaTerreno = Convert.ToInt32(busquedaPagoCuotaTerreno[0]["valor_cuota"]);
+                                    }
+
+                                    //vemos si la cuota ya fue pagada
+                                    DataRow[] busquedaPagoCuota = dtPagosRealizados.AsEnumerable()
+                                                                 .Where(r =>
+                                                                     r.Field<DateTime>("fecha_vcto") == fechaVto &&
+                                                                     r.Field<string>("contrato") == dtContratos.Rows[i]["con_num_con"].ToString() &&
+                                                                     r.Field<int>("valor_cuota") == (valorCuota - valorCuotaTerreno)
+                                                                 ).ToArray();
+                                    if (busquedaPagoCuota.Length > 0)
+                                    {
+                                        filaNuevaInt["int_fecha_pago"] = busquedaPagoCuota[0]["fecha_pago"];
+                                        filaNuevaInt["int_estado_cuota"] = 2; //"Pagado";
+                                        fechaUltPagoCuota = (DateTime)busquedaPagoCuota[0]["fecha_pago"];
+
+                                        //se agregan las modificaciones en caso de haberlas
+                                        var busqueda = dtModificaciones.Select("numero_contrato='" + dtContratos.Rows[i]["con_num_con"] + "'");  //+ " and tipo_sistema=" + dtContratos.Rows[i]["tipo_sistema"]);
+                                        foreach (DataRow busquedaModificacion in busqueda)
+                                        {
+                                            //fecha de modificación no puede ser mayor a la fecha de pago 
+                                            if ((DateTime)busquedaPagoCuota[0]["fecha_pago"] >= (DateTime)busquedaModificacion["fecha_modificacion"])
+                                            {
+                                                filaNuevaInt["int_estado_cuota"] = 1; //"Pendiente";
+                                            }
+                                            else
+                                            {
+                                                filaNuevaInt["int_fecha_pago"] = busquedaPagoCuota[0]["fecha_pago"];
+                                                filaNuevaInt["int_estado_cuota"] = 2; //"Pagado";
+                                                fechaUltPagoCuota = (DateTime)busquedaPagoCuota[0]["fecha_pago"];
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        filaNuevaInt["int_estado_cuota"] = 1; //"Pendiente";
+                                    }
+
+                                    //calculo de intereses
+                                    filaNuevaInt["int_saldo_inicial"] = saldoInicial;
+                                    double interes = 0;
+                                    if (Convert.ToInt32(dtContratos.Rows[i]["con_cuotas_pactadas"].ToString()) > 3)
+                                    {
+                                        interes = saldoInicial * 0.02;
+                                    }
+                                    else
+                                    {
+                                        interes = 0;
+                                    }
+                                    double montoCapital = valorCuota - interes;
+                                    filaNuevaInt["int_tasa_interes"] = (int)interes;
+                                    filaNuevaInt["int_cuota_final"] = (int)valorCuota;
+                                    filaNuevaInt["int_abono_a_capital"] = (int)montoCapital;
+                                    saldoInicial = saldoInicial - montoCapital;
+                                    filaNuevaInt["int_saldo_final"] = (int)saldoInicial;
+
+                                    //se agrega la fila al datatable
+                                    dtInteresPorDev.Rows.Add(filaNuevaInt);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logWriter_paso1.WriteLineAsync($"Falló --> Cuota n°: {numeroCuota} , Contrato: {dtContratos.Rows[i]["con_num_con"].ToString()},  Excepcion capturada: {ex.Message} - {DateTime.Now}");
+                            }
+                            finally
+                            {
+                                if (dtInteresPorDev.Rows.Count == 0)
+                                {
+                                    logWriter_paso1.WriteLineAsync($"Datatable dtInteresPorDev tiene 0 registros - {DateTime.Now}");
+                                }                                
+                            }
+                        }
+                    }
+
+
+
+                    /*INGRESOS DIFERIDOS DE CONTRATOS ARRIENDO*/
+                    string numeroContrato = dtContratos.Rows[i]["con_num_con"].ToString(); 
+                    string logPath_paso2 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2_cargaDTMesesArriendo.txt");
+                    using (StreamWriter logWriter_paso2 = new StreamWriter(logPath_paso2, append: true))
+                    {
+                        for (int i3 = 0; i3 < mesesArriendo; i3++)
+                        {
+                            int cuota = i3 + 1;
+
+                            try
+                            {
+                                bool existeCuota = dtIngresosDiferidos.AsEnumerable().Any(row =>
+                                row["ing_num_con"].ToString() == numeroContrato &&
+                                row["ing_nro_cuota"].ToString() == cuota.ToString());
+
+                                if (!existeCuota)
+                                {
+                                    if (interesDiferido > 0)
+                                    {
+                                        DataRow filaNuevaIng = dtIngresosDiferidos.NewRow();
+                                        filaNuevaIng["ing_num_con"] = numeroContrato;
+                                        filaNuevaIng["ing_nro_cuota"] = cuota;
+                                        filaNuevaIng["ing_precio_base"] = precioBase;
+                                        filaNuevaIng["ing_interes_diferido"] = interesDiferido;
+                                        filaNuevaIng["ing_fecha_contab"] = GetUltimoDiaDelMes(fechaVtoOriginal.AddMonths(cuota - 1));
+                                        filaNuevaIng["ing_estado_contab"] = 0;
+                                        dtIngresosDiferidos.Rows.Add(filaNuevaIng);
+                                    }
+
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logWriter_paso2.WriteLineAsync($"Falló for meses de arriendo, contrato: {numeroContrato}, cuota : {cuota} Excepcion capturada: {ex.Message} - {DateTime.Now}");
+                            }
+                            finally
+                            {
+                                if (dtIngresosDiferidos.Rows.Count == 0)
+                                {
+                                    logWriter.WriteLineAsync($"DataTable dtIngresosDiferidos no tiene registros - {DateTime.Now}");
+                                }                                
+                            }
+                        }
+                    }
 
                 }
 
@@ -440,191 +603,6 @@ namespace webApiIFRS.Controllers
                     registrosIngresosYaExisten = cont
                 });   
             }
-        }
-
-        public static DataTable Paso1_cargaDTInteresesPorDevengar(DataTable dtContratos, DataTable dtInteresPorDev, int correlativo_int_dev, DateTime fechaVto, DateTime fechaVtoOriginal, int i, 
-            DataTable dtPagosRealizadosTerreno, DataTable dtPagosRealizados, double valorCuota, DateTime fechaUltPagoCuota, DataTable dtModificaciones, double saldoInicial)
-        {
-            DataTable dt = new DataTable();
-
-            string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_1_cargaDTInteresesPorDevengar.txt");
-
-            using (StreamWriter logWriter = new StreamWriter(logPath, append: true))
-            {
-                //logWriter.WriteLineAsync($"Se recorren {dtContratos.Rows.Count } - {DateTime.Now}");
-
-                for (int i2 = 0; i2 < Convert.ToInt32(dtContratos.Rows[i]["con_cuotas_pactadas"].ToString()); i2++)
-                {
-                    int numeroCuota = i2 + 1;
-                    try
-                    {
-                        //logWriter.WriteLineAsync($"Se recorre el total de cuotas por contrato, n° contrato: {dtContratos.Rows[i]["con_num_con"].ToString()}, cuota n°: {numeroCuota} - {DateTime.Now}");
-
-                        bool existeCuota = dtInteresPorDev.AsEnumerable().Any(row =>
-                        row["int_num_con"].ToString() == dtContratos.Rows[i]["con_num_con"].ToString() &&
-                        row["int_nro_cuota"].ToString() == numeroCuota.ToString());
-
-                        if (!existeCuota)
-                        {
-                            DataRow filaNuevaInt = dtInteresPorDev.NewRow();
-                            filaNuevaInt["int_num_con"] = dtContratos.Rows[i]["con_num_con"].ToString();
-                            filaNuevaInt["int_nro_cuota"] = numeroCuota;
-                            filaNuevaInt["int_correlativo"] = correlativo_int_dev;
-                            if (dtContratos.Rows[i]["con_fecha_primer_vcto_ori"] != DBNull.Value)
-                            {
-                                if (numeroCuota == 1)
-                                {
-                                    filaNuevaInt["int_fecha_vcto"] = fechaVto.ToShortDateString();
-                                    filaNuevaInt["int_fecha_contab"] = GetUltimoDiaDelMes(fechaVto);
-                                    filaNuevaInt["int_estado_contab"] = 0;
-                                }
-                                else
-                                {
-                                    filaNuevaInt["int_fecha_vcto"] = fechaVtoOriginal.AddMonths(numeroCuota - 1).ToShortDateString();
-                                    fechaVto = fechaVtoOriginal.AddMonths(numeroCuota - 1);
-                                    filaNuevaInt["int_fecha_contab"] = GetUltimoDiaDelMes(fechaVto);
-                                    filaNuevaInt["int_estado_contab"] = 0;
-                                }
-                            }
-                            //revisamos si tiene cuota en terreno y se resta para cuadrar
-                            double valorCuotaTerreno = 0;
-                            DataRow[] busquedaPagoCuotaTerreno = dtPagosRealizadosTerreno.Select("fecha_vto='" + fechaVto + "' and contrato='" + dtContratos.Rows[i]["con_num_con"].ToString() + "'");
-                            if (busquedaPagoCuotaTerreno.Length > 0)
-                            {
-                                valorCuotaTerreno = Convert.ToInt32(busquedaPagoCuotaTerreno[0]["valor_cuota"]);
-                            }
-
-                            //vemos si la cuota ya fue pagada
-                            DataRow[] busquedaPagoCuota = dtPagosRealizados.AsEnumerable()
-                                                         .Where(r =>
-                                                             r.Field<DateTime>("fecha_vcto") == fechaVto &&
-                                                             r.Field<string>("contrato") == dtContratos.Rows[i]["con_num_con"].ToString() &&
-                                                             r.Field<int>("valor_cuota") == (valorCuota - valorCuotaTerreno)
-                                                         ).ToArray();
-                            if (busquedaPagoCuota.Length > 0)
-                            {
-                                filaNuevaInt["int_fecha_pago"] = busquedaPagoCuota[0]["fecha_pago"];
-                                filaNuevaInt["int_estado_cuota"] = 2; //"Pagado";
-                                fechaUltPagoCuota = (DateTime)busquedaPagoCuota[0]["fecha_pago"];
-
-                                //se agregan las modificaciones en caso de haberlas
-                                var busqueda = dtModificaciones.Select("numero_contrato='" + dtContratos.Rows[i]["con_num_con"] + "'");  //+ " and tipo_sistema=" + dtContratos.Rows[i]["tipo_sistema"]);
-                                foreach (DataRow busquedaModificacion in busqueda)
-                                {
-                                    //fecha de modificación no puede ser mayor a la fecha de pago 
-                                    if ((DateTime)busquedaPagoCuota[0]["fecha_pago"] >= (DateTime)busquedaModificacion["fecha_modificacion"])
-                                    {
-                                        filaNuevaInt["int_estado_cuota"] = 1; //"Pendiente";
-                                    }
-                                    else
-                                    {
-                                        filaNuevaInt["int_fecha_pago"] = busquedaPagoCuota[0]["fecha_pago"];
-                                        filaNuevaInt["int_estado_cuota"] = 2; //"Pagado";
-                                        fechaUltPagoCuota = (DateTime)busquedaPagoCuota[0]["fecha_pago"];
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                filaNuevaInt["int_estado_cuota"] = 1; //"Pendiente";
-                            }
-
-                            //calculo de intereses
-                            filaNuevaInt["int_saldo_inicial"] = saldoInicial;
-                            double interes = 0;
-                            if (Convert.ToInt32(dtContratos.Rows[i]["con_cuotas_pactadas"].ToString()) > 3)
-                            {
-                                interes = saldoInicial * 0.02;
-                            }
-                            else
-                            {
-                                interes = 0;
-                            }
-                            double montoCapital = valorCuota - interes;
-                            filaNuevaInt["int_tasa_interes"] = (int)interes;
-                            filaNuevaInt["int_cuota_final"] = (int)valorCuota;
-                            filaNuevaInt["int_abono_a_capital"] = (int)montoCapital;
-                            saldoInicial = saldoInicial - montoCapital;
-                            filaNuevaInt["int_saldo_final"] = (int)saldoInicial;
-
-                            //se agrega la fila al datatable
-                            dtInteresPorDev.Rows.Add(filaNuevaInt);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logWriter.WriteLineAsync($"Falló --> Cuota n°: {numeroCuota} , Contrato: {dtContratos.Rows[i]["con_num_con"].ToString()},  Excepcion capturada: {ex.Message} - {DateTime.Now}");
-                    }
-                    finally
-                    {
-                        if (dtInteresPorDev.Rows.Count == 0)
-                        {
-                            logWriter.WriteLineAsync($"Datatable dtInteresPorDev tiene 0 registros - {DateTime.Now}");
-                        }
-                        else
-                        {
-                            dt = dtInteresPorDev; 
-                            //logWriter.WriteLineAsync($"Proceso que recorre las cuotas por contrato funciona con exito y carga intereses en datatable - {DateTime.Now}");
-                        }
-                    }
-                }
-            }
-
-            return dt; 
-        }
-
-        public static DataTable Paso2_cargaDTMesesArriendo(int mesesArriendo, DataTable dtIngresosDiferidos, string numeroContrato, int interesDiferido, int precioBase, DateTime fechaVtoOriginal)
-        {
-            DataTable dt = new DataTable();
-            string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2_cargaDTMesesArriendo.txt");
-            using (StreamWriter logWriter = new StreamWriter(logPath, append: true))
-            {
-                for (int i3 = 0; i3 < mesesArriendo; i3++)
-                {
-                    int cuota = i3 + 1;
-
-                    try
-                    {
-                        bool existeCuota = dtIngresosDiferidos.AsEnumerable().Any(row =>
-                        row["ing_num_con"].ToString() == numeroContrato &&
-                        row["ing_nro_cuota"].ToString() == cuota.ToString());
-
-                        if (!existeCuota)
-                        {
-                            if (interesDiferido > 0)
-                            {
-                                DataRow filaNuevaIng = dtIngresosDiferidos.NewRow();
-                                filaNuevaIng["ing_num_con"] = numeroContrato;
-                                filaNuevaIng["ing_nro_cuota"] = cuota;
-                                filaNuevaIng["ing_precio_base"] = precioBase;
-                                filaNuevaIng["ing_interes_diferido"] = interesDiferido;
-                                filaNuevaIng["ing_fecha_contab"] = GetUltimoDiaDelMes(fechaVtoOriginal.AddMonths(cuota - 1));
-                                filaNuevaIng["ing_estado_contab"] = 0;
-                                dtIngresosDiferidos.Rows.Add(filaNuevaIng);
-                            }
-
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logWriter.WriteLineAsync($"Falló for meses de arriendo, contrato: {numeroContrato}, cuota : {cuota} Excepcion capturada: {ex.Message} - {DateTime.Now}");
-                    }
-                    finally
-                    {
-
-                        if (dtIngresosDiferidos.Rows.Count == 0)
-                        {
-                            logWriter.WriteLineAsync($"DataTable dtIngresosDiferidos no tiene registros - {DateTime.Now}");
-                        }
-                        else
-                        {
-                            //await logWriter.WriteLineAsync($"Proceso que recorre los meses de arriendo por contrato, funciona con exito y carga ingresos en datatable - {DateTime.Now}");
-                        }
-                    }
-                }
-            }
-            dt = dtIngresosDiferidos; 
-            return dt; 
         }
 
         public static DataTable Paso3_cargaDTModificacionReactualizacionResciliacion(DataTable dtContratos, DataTable dtModificaciones,DataTable dtInteresPorDev, int correlativo_int_dev,
