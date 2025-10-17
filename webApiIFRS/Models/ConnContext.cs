@@ -24,6 +24,7 @@ namespace webApiIFRS.Models
         public DbSet<PagosRealizadosTerreno> pagosRealizadosTerreno { get; set; } = null;
         public DbSet<Modificaciones> Modificaciones { get; set; } = null;
         public DbSet<FechaPrimerVtoBOV> fechaPrimerVtoBOV { get; set; } = null;
+        public DbSet<DerechosServicios> DerechosServicios { get; set; } = null; 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -33,6 +34,27 @@ namespace webApiIFRS.Models
             modelBuilder.Entity<Modificaciones>().HasNoKey();
             modelBuilder.Entity<FechaPrimerVtoBOV>().HasNoKey();
             modelBuilder.Entity<ContratoDTO>().HasNoKey();
+            modelBuilder.Entity<DerechosServicios>().HasNoKey();
+
+            modelBuilder.Entity<Contrato>(entity =>
+            {
+                entity.ToTable("CONTRATO");
+                entity.Property(e => e.con_derechos_servicios_sin_iva)
+                      .HasColumnName("CON_DERECHOS_SERVICIOS_SIN_IVA")
+                      .HasPrecision(18,0)
+                      .HasColumnType("decimal")
+                      .ValueGeneratedNever();
+            });
+
+            modelBuilder.Entity<IngresosDiferidosNichos>(entity =>
+            {
+                entity.ToTable("INGRESOS_DIFERIDOS_NICHOS");
+                entity.Property(e => e.ing_a_diferir)
+                      .HasColumnName("ING_A_DIFERIR")
+                      .HasPrecision(18, 0)
+                      .HasColumnType("decimal")
+                      .ValueGeneratedNever();
+            });
         }
 
 
@@ -65,12 +87,12 @@ namespace webApiIFRS.Models
             dt.Columns.Add("con_num_con", typeof(string));
             dt.Columns.Add("con_id_tipo_ingreso", typeof(int));
             dt.Columns.Add("con_fecha_ingreso", typeof(DateTime));
-            dt.Columns.Add("con_total_venta", typeof(int));
-            dt.Columns.Add("con_precio_base", typeof(int));
-            dt.Columns.Add("con_pie", typeof(int));
-            dt.Columns.Add("con_total_credito", typeof(int));
+            dt.Columns.Add("con_total_venta", typeof(decimal));
+            dt.Columns.Add("con_precio_base", typeof(decimal));
+            dt.Columns.Add("con_pie", typeof(decimal));
+            dt.Columns.Add("con_total_credito", typeof(decimal));
             dt.Columns.Add("con_cuotas_pactadas", typeof(int));
-            dt.Columns.Add("con_valor_cuota_pactada", typeof(int));
+            dt.Columns.Add("con_valor_cuota_pactada", typeof(decimal));
             dt.Columns.Add("con_tasa_interes", typeof(int));
             dt.Columns.Add("con_capacidad_sepultura", typeof(int));
             dt.Columns.Add("con_tipo_compra", typeof(string));
@@ -82,6 +104,7 @@ namespace webApiIFRS.Models
             dt.Columns.Add("con_estado_contrato", typeof(string));
             dt.Columns.Add("con_num_repactaciones", typeof(int));   
             dt.Columns.Add("con_anos_arriendo", typeof(int));
+            dt.Columns.Add("con_derechos_servicios_sin_iva", typeof(decimal)); 
 
             foreach (var x in contratos)
             {
@@ -106,7 +129,8 @@ namespace webApiIFRS.Models
                     x.con_cuotas_pactadas_mod,
                     x.con_estado_contrato,
                     x.con_num_repactaciones,
-                    x.con_anos_arriendo
+                    x.con_anos_arriendo, 
+                    x.con_derechos_servicios_sin_iva
                 );
             }
 
@@ -124,12 +148,12 @@ namespace webApiIFRS.Models
             dt.Columns.Add("con_num_con", typeof(string));
             dt.Columns.Add("con_id_tipo_ingreso", typeof(int));
             dt.Columns.Add("con_fecha_ingreso", typeof(DateTime));
-            dt.Columns.Add("con_total_venta", typeof(int));
-            dt.Columns.Add("con_precio_base", typeof(int));
-            dt.Columns.Add("con_pie", typeof(int));
-            dt.Columns.Add("con_total_credito", typeof(int));
+            dt.Columns.Add("con_total_venta", typeof(decimal));
+            dt.Columns.Add("con_precio_base", typeof(decimal));
+            dt.Columns.Add("con_pie", typeof(decimal));
+            dt.Columns.Add("con_total_credito", typeof(decimal));
             dt.Columns.Add("con_cuotas_pactadas", typeof(int));
-            dt.Columns.Add("con_valor_cuota_pactada", typeof(int));
+            dt.Columns.Add("con_valor_cuota_pactada", typeof(decimal));
             dt.Columns.Add("con_tasa_interes", typeof(decimal));
             dt.Columns.Add("con_capacidad_sepultura", typeof(int));
             dt.Columns.Add("con_tipo_compra", typeof(string));
@@ -141,6 +165,7 @@ namespace webApiIFRS.Models
             dt.Columns.Add("con_estado_contrato", typeof(string));
             dt.Columns.Add("con_num_repactaciones", typeof(int));
             dt.Columns.Add("con_anos_arriendo", typeof(int));
+            dt.Columns.Add("con_derechos_servicios_sin_iva", typeof(decimal));
 
             foreach (var x in contratos)
             {
@@ -165,7 +190,8 @@ namespace webApiIFRS.Models
                     x.con_cuotas_pactadas_mod,
                     x.con_estado_contrato,
                     x.con_num_repactaciones,
-                    x.con_anos_arriendo
+                    x.con_anos_arriendo,
+                    x.con_derechos_servicios_sin_iva
                 );
             }
             return dt;
@@ -362,9 +388,10 @@ namespace webApiIFRS.Models
 
             dt.Columns.Add("ing_id", typeof(int));  
             dt.Columns.Add("ing_num_con", typeof(string));
-            dt.Columns.Add("ing_precio_base", typeof(int));
+            dt.Columns.Add("ing_precio_base", typeof(decimal));
+            dt.Columns.Add("ing_a_diferir", typeof(decimal));
             dt.Columns.Add("ing_nro_cuota", typeof(int));
-            dt.Columns.Add("ing_interes_diferido", typeof(int));
+            dt.Columns.Add("ing_interes_diferido", typeof(decimal));
             dt.Columns.Add("ing_fecha_contab", typeof(DateTime));
             dt.Columns.Add("ing_estado_contab", typeof(int));
 
@@ -374,11 +401,36 @@ namespace webApiIFRS.Models
                     p.ing_id,
                     p.ing_num_con,
                     p.ing_precio_base,
+                    p.ing_a_diferir,
                     p.ing_nro_cuota,
                     p.ing_interes_diferido,
                     (object?)p.ing_fecha_contab ?? DBNull.Value,
                     p.ing_estado_contab
                 );
+            }
+
+            return dt;
+        }
+
+        public async Task<DataTable> ObtenerDerechosServiciosSinIva(int anio)
+        {
+            DataTable dt = new DataTable();
+
+            var derechosServicios = await DerechosServicios
+                .FromSqlInterpolated($"EXEC SP_IFRS_LISTA_DERECHOS_SERVICIOS_ALL_CONTRATOS {anio}")
+                .ToListAsync();
+
+            dt.Columns.Add("numero_contrato", typeof(string)); 
+            dt.Columns.Add("numero_comprobante", typeof(string));
+            dt.Columns.Add("total_serv_der_sin_iva", typeof(decimal)); 
+
+            foreach (var p in derechosServicios)
+            {
+                dt.Rows.Add(
+                    p.numero_contrato,
+                    p.numero_comprobante,
+                    p.total_serv_der_sin_iva
+                    );
             }
 
             return dt;

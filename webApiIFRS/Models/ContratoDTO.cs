@@ -5,12 +5,12 @@
         public string con_num_con { get; set; }
         public int? con_id_tipo_ingreso { get; set; }
         public DateTime? con_fecha_ingreso { get; set; }
-        public int? con_total_venta { get; set; }
-        public int? con_precio_base { get; set; }
-        public int? con_pie { get; set; }
-        public int? con_total_credito { get; set; }
+        public decimal? con_total_venta { get; set; }
+        public decimal? con_precio_base { get; set; }
+        public decimal? con_pie { get; set; }
+        public decimal? con_total_credito { get; set; }
         public int? con_cuotas_pactadas { get; set; }
-        public int? con_valor_cuota_pactada { get; set; }
+        public decimal? con_valor_cuota_pactada { get; set; }
         public decimal? con_tasa_interes { get; set; }
         public int? con_capacidad_sepultura { get; set; }
         public string con_tipo_compra { get; set; }
@@ -22,6 +22,7 @@
         public string con_estado_contrato { get; set; }
         public int? con_num_repactaciones { get; set; }
         public int? con_anos_arriendo { get; set; }
+        public decimal? con_derechos_servicios_sin_iva { get; set; }
 
         public ContratoDTO()
         {            
@@ -45,6 +46,7 @@
             con_estado_contrato = string.Empty;
             con_num_repactaciones = 0;
             con_anos_arriendo = 0;
+            con_derechos_servicios_sin_iva = 0;
         }
     }
 }

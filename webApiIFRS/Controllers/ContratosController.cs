@@ -142,6 +142,7 @@ namespace webApiIFRS.Controllers
             DataTable dtInteresPorDevParaValidar = new DataTable();
             DataTable dtIngresosDiferidosParaValidar = new DataTable();
             DataTable dtInteresPorDevInactivos = new DataTable();
+            DataTable dtDerechosServicios = new DataTable();
 
             DateTime fechaVto = new DateTime();
             DateTime fechaVtoOriginal = new DateTime();
@@ -170,6 +171,35 @@ namespace webApiIFRS.Controllers
                 .Where(r => !contratosDuplicados.Contains(r.Field<string>("con_num_con")))
                 .CopyToDataTable();
 
+            dtDerechosServicios = await _connContext.ObtenerDerechosServiciosSinIva(2025); 
+
+            if(!dtContratos.Columns.Contains("con_derechos_servicios_sin_iva"))
+            {
+                dtContratos.Columns.Add("con_derechos_servicios_sin_iva", typeof(decimal)); 
+            }
+
+            var derechosServiciosPorContrato = dtDerechosServicios
+                .AsEnumerable()
+                .GroupBy(r => r.Field<string>("numero_contrato"))
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Sum(r => Convert.ToDecimal(r["total_serv_der_sin_iva"]))
+                );
+
+            foreach(DataRow row in dtContratos.Rows)
+            {
+                var contrato = row.Field<string>("con_num_con");
+                if (!string.IsNullOrEmpty(contrato) &&
+                    derechosServiciosPorContrato.TryGetValue(contrato, out decimal total))
+                {
+                    row["con_derechos_servicios_sin_iva"] = total;
+                }
+                else
+                {
+                    row["con_derechos_servicios_sin_iva"] = 0L; 
+                }
+            }
+
             /*OBTENGO TODA LA INFORMACION MENOS TOTAL_VENTA PARA LOS CONTRATOS DUPLICADOS Y SE AGREGAN LOS CONTRATOS QUE ESTABAN DUPLICADOS AHORA CALCULANDO SU TOTALVENTA*/
             foreach (var con in contratosDuplicados)
             {
@@ -178,9 +208,9 @@ namespace webApiIFRS.Controllers
                     .FirstOrDefault();
         
                 DataRow filaNew = dtContratos.NewRow();
-                int pie = int.Parse(busqueda[5].ToString()); 
+                decimal pie = decimal.Parse(busqueda[5].ToString()); 
                 int cuotasPactadas = int.Parse(busqueda[7].ToString()); 
-                int valorCuota = int.Parse(busqueda[8].ToString());
+                decimal valorCuota = decimal.Parse(busqueda[8].ToString());
                 filaNew["con_num_con"] = busqueda[0].ToString();
                 filaNew["con_id_tipo_ingreso"] = busqueda[1].ToString();
                 filaNew["con_fecha_ingreso"] = busqueda[2].ToString();
@@ -201,6 +231,16 @@ namespace webApiIFRS.Controllers
                 filaNew["con_estado_contrato"] = busqueda[17].ToString();
                 filaNew["con_num_repactaciones"] = busqueda[18].ToString();
                 filaNew["con_anos_arriendo"] = busqueda[19].ToString();
+
+                if (derechosServiciosPorContrato.TryGetValue(busqueda[0].ToString(), out decimal totalDerechos))
+                {
+                    filaNew["con_derechos_servicios_sin_iva"] = totalDerechos;
+                }
+                else
+                {
+                    filaNew["con_derechos_servicios_sin_iva"] = 0L;
+                }
+
                 dtContratos.Rows.Add(filaNew);                
             }
 
@@ -228,12 +268,12 @@ namespace webApiIFRS.Controllers
                                     con_num_con = GetStringValue(row, "con_num_con"),
                                     con_id_tipo_ingreso = GetIntValue(row, "con_id_tipo_ingreso"),
                                     con_fecha_ingreso = GetDateValue(row, "con_fecha_ingreso"),
-                                    con_total_venta = GetIntValue(row, "con_total_venta"),
-                                    con_precio_base = GetIntValue(row, "con_precio_base"),
-                                    con_pie = GetIntValue(row, "con_pie"),
-                                    con_total_credito = GetIntValue(row, "con_total_credito"),
+                                    con_total_venta = GetDecimalValue(row, "con_total_venta"),
+                                    con_precio_base = GetDecimalValue(row, "con_precio_base"),
+                                    con_pie = GetDecimalValue(row, "con_pie"),
+                                    con_total_credito = GetDecimalValue(row, "con_total_credito"),
                                     con_cuotas_pactadas = GetIntValue(row, "con_cuotas_pactadas"),
-                                    con_valor_cuota_pactada = GetIntValue(row, "con_valor_cuota_pactada"),
+                                    con_valor_cuota_pactada = GetDecimalValue(row, "con_valor_cuota_pactada"),
                                     con_tasa_interes = GetIntValue(row, "con_tasa_interes"),
                                     con_capacidad_sepultura = GetIntValue(row, "con_capacidad_sepultura"),
                                     con_tipo_compra = GetStringValue(row, "con_tipo_compra"),
@@ -244,7 +284,8 @@ namespace webApiIFRS.Controllers
                                     con_cuotas_pactadas_mod = GetIntValue(row, "con_cuotas_pactadas_mod"),
                                     con_estado_contrato = GetStringValue(row, "con_estado_contrato"),
                                     con_num_repactaciones = GetIntValue(row, "con_num_repactaciones"),
-                                    con_anos_arriendo = GetIntValue(row, "con_anos_arriendo")
+                                    con_anos_arriendo = GetIntValue(row, "con_anos_arriendo"),
+                                    con_derechos_servicios_sin_iva = GetDecimalValue(row, "con_derechos_servicios_sin_iva")
                                 };
                                 await _connContext.Contrato.AddAsync(contrato);
                             }
@@ -323,14 +364,18 @@ namespace webApiIFRS.Controllers
                     }
 
                     //variable tabla de amortización
-                    double saldoInicial = Convert.ToInt32(dtContratos.Rows[i]["con_total_credito"]);
-                    double valorCuota = Convert.ToInt32(dtContratos.Rows[i]["con_valor_cuota_pactada"]);
+                    double saldoInicial = Convert.ToDouble(dtContratos.Rows[i]["con_total_credito"]);
+                    double valorCuota = Convert.ToDouble(dtContratos.Rows[i]["con_valor_cuota_pactada"]);
                     fechaUltPagoCuota = Convert.ToDateTime(dtContratos.Rows[i]["con_fecha_ingreso"]).Date;
 
                     //intereses diferidos
-                    int interesDiferido = 0;
+                    decimal interesDiferido = 0;
                     int mesesArriendo = 0;
-                    int precioBase = int.Parse(dtContratos.Rows[i]["con_precio_base"].ToString());
+                    decimal totalCredito = decimal.Parse(dtContratos.Rows[i]["con_total_credito"].ToString());
+                    decimal pie = decimal.Parse(dtContratos.Rows[i]["con_pie"].ToString());
+                    decimal derechos_servicios = decimal.Parse(dtContratos.Rows[i]["con_derechos_servicios_sin_iva"].ToString());
+                    decimal calculoIngresosADiferir = totalCredito + pie - derechos_servicios;
+                    decimal precioBase = decimal.Parse(dtContratos.Rows[i]["con_precio_base"].ToString());
 
                     /*****TEMPORALIDAD NICHOS****/
                        /*
@@ -348,7 +393,8 @@ namespace webApiIFRS.Controllers
                     if (int.Parse(dtContratos.Rows[i]["con_id_tipo_ingreso"].ToString()) == 1 && int.Parse(dtContratos.Rows[i]["con_anos_arriendo"].ToString()) > 0)
                     {
                         mesesArriendo = Convert.ToInt32(dtContratos.Rows[i]["con_anos_arriendo"]) * 12;
-                        interesDiferido = precioBase / mesesArriendo;
+                        //interesDiferido = precioBase / mesesArriendo;
+                        interesDiferido = calculoIngresosADiferir / mesesArriendo; 
                     }
 
                     if (dtInteresPorDev.Columns.Count == 0)
@@ -375,9 +421,10 @@ namespace webApiIFRS.Controllers
                     {
                         dtIngresosDiferidos.Columns.Add("ID", typeof(int));
                         dtIngresosDiferidos.Columns.Add("ing_num_con", typeof(string));
-                        dtIngresosDiferidos.Columns.Add("ing_precio_base", typeof(int));
+                        dtIngresosDiferidos.Columns.Add("ing_precio_base", typeof(decimal));
+                        dtIngresosDiferidos.Columns.Add("ing_a_diferir", typeof(decimal));
                         dtIngresosDiferidos.Columns.Add("ing_nro_cuota", typeof(int));
-                        dtIngresosDiferidos.Columns.Add("ing_interes_diferido", typeof(int));
+                        dtIngresosDiferidos.Columns.Add("ing_interes_diferido", typeof(decimal));
                         dtIngresosDiferidos.Columns.Add("ing_fecha_contab", typeof(DateTime));
                         dtIngresosDiferidos.Columns.Add("ing_estado_contab", typeof(int));
                     }
@@ -529,6 +576,7 @@ namespace webApiIFRS.Controllers
                                         filaNuevaIng["ing_num_con"] = numeroContrato;
                                         filaNuevaIng["ing_nro_cuota"] = cuota;
                                         filaNuevaIng["ing_precio_base"] = precioBase;
+                                        filaNuevaIng["ing_a_diferir"] = calculoIngresosADiferir;
                                         filaNuevaIng["ing_interes_diferido"] = interesDiferido;
                                         filaNuevaIng["ing_fecha_contab"] = GetUltimoDiaDelMes(fechaVtoOriginal.AddMonths(cuota - 1));
                                         filaNuevaIng["ing_estado_contab"] = 0;
@@ -872,7 +920,7 @@ namespace webApiIFRS.Controllers
 
                         var totalCreditoContrato = dtContratos.AsEnumerable()
                                 .Where(row => row.Field<string>("con_num_con") == (string)dtInteresPorDev.Rows[i]["int_num_con"] && row.Field<int>("con_cuotas_pactadas") > 0)
-                                .Select(row => row.Field<int>("con_total_credito"))
+                                .Select(row => row.Field<decimal>("con_total_credito"))
                                 .FirstOrDefault();
                         //.ToList();
 
@@ -1034,9 +1082,10 @@ namespace webApiIFRS.Controllers
                             IngresosDiferidosNichos ingresos = new IngresosDiferidosNichos
                             {
                                 ing_num_con = GetStringValue(row, "ing_num_con"),
-                                ing_precio_base = GetIntValue(row, "ing_precio_base"),
+                                ing_precio_base = GetDecimalValue(row, "ing_precio_base"),
+                                ing_a_diferir = GetDecimalValue(row,"ing_a_diferir"), 
                                 ing_nro_cuota = GetIntValue(row, "ing_nro_cuota"),
-                                ing_interes_diferido = GetIntValue(row, "ing_interes_diferido"),
+                                ing_interes_diferido = GetDecimalValue(row, "ing_interes_diferido"),
                                 ing_fecha_contab = GetDateValue(row, "ing_fecha_contab"),
                                 ing_estado_contab = GetIntValue(row, "ing_estado_contab"),
                                 ing_fecha = DateTime.Now
@@ -1155,6 +1204,12 @@ namespace webApiIFRS.Controllers
         private static DateTime? GetDateValue(DataRow row, string columnName)
         {
             return row[columnName] == DBNull.Value || string.IsNullOrWhiteSpace(row[columnName].ToString()) ? (DateTime?)null : Convert.ToDateTime(row[columnName]);
+        }
+
+        private static decimal GetDecimalValue(DataRow row, string columnName)
+        {
+            if (row == null || !row.Table.Columns.Contains(columnName)) return 0m;
+            return row.Field<decimal?>(columnName) ?? 0m;
         }
         #endregion
     }
