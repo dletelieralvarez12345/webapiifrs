@@ -39,8 +39,8 @@ namespace webApiIFRS.Models
             modelBuilder.Entity<Contrato>(entity =>
             {
                 entity.ToTable("CONTRATO");
-                entity.Property(e => e.con_derechos_servicios_sin_iva)
-                      .HasColumnName("CON_DERECHOS_SERVICIOS_SIN_IVA")
+                entity.Property(e => e.con_derechos_servicios_con_iva)
+                      .HasColumnName("CON_DERECHOS_SERVICIOS_CON_IVA")
                       .HasPrecision(18,0)
                       .HasColumnType("decimal")
                       .ValueGeneratedNever();
@@ -85,6 +85,7 @@ namespace webApiIFRS.Models
 
             //dt.Columns.Add("con_id", typeof(int));
             dt.Columns.Add("con_num_con", typeof(string));
+            dt.Columns.Add("con_num_comprobante", typeof(int));
             dt.Columns.Add("con_id_tipo_ingreso", typeof(int));
             dt.Columns.Add("con_fecha_ingreso", typeof(DateTime));
             dt.Columns.Add("con_total_venta", typeof(decimal));
@@ -104,13 +105,14 @@ namespace webApiIFRS.Models
             dt.Columns.Add("con_estado_contrato", typeof(string));
             dt.Columns.Add("con_num_repactaciones", typeof(int));   
             dt.Columns.Add("con_anos_arriendo", typeof(int));
-            dt.Columns.Add("con_derechos_servicios_sin_iva", typeof(decimal)); 
+            dt.Columns.Add("con_derechos_servicios_con_iva", typeof(decimal)); 
 
             foreach (var x in contratos)
             {
                 dt.Rows.Add(
                     //x.con_id, 
                     x.con_num_con,
+                    x.con_num_comprobante, 
                     x.con_id_tipo_ingreso,
                     (object?)x.con_fecha_ingreso ?? DBNull.Value,
                     x.con_total_venta,
@@ -130,7 +132,7 @@ namespace webApiIFRS.Models
                     x.con_estado_contrato,
                     x.con_num_repactaciones,
                     x.con_anos_arriendo, 
-                    x.con_derechos_servicios_sin_iva
+                    x.con_derechos_servicios_con_iva
                 );
             }
 
@@ -146,6 +148,7 @@ namespace webApiIFRS.Models
 
             //dt.Columns.Add("con_id", typeof(int));
             dt.Columns.Add("con_num_con", typeof(string));
+            dt.Columns.Add("con_num_comprobante", typeof(int));
             dt.Columns.Add("con_id_tipo_ingreso", typeof(int));
             dt.Columns.Add("con_fecha_ingreso", typeof(DateTime));
             dt.Columns.Add("con_total_venta", typeof(decimal));
@@ -165,13 +168,14 @@ namespace webApiIFRS.Models
             dt.Columns.Add("con_estado_contrato", typeof(string));
             dt.Columns.Add("con_num_repactaciones", typeof(int));
             dt.Columns.Add("con_anos_arriendo", typeof(int));
-            dt.Columns.Add("con_derechos_servicios_sin_iva", typeof(decimal));
+            dt.Columns.Add("con_derechos_servicios_con_iva", typeof(decimal));
 
             foreach (var x in contratos)
             {
                 dt.Rows.Add(
                     //x.con_id,
                     x.con_num_con,
+                    x.con_num_comprobante, 
                     x.con_id_tipo_ingreso,
                     (object?)x.con_fecha_ingreso ?? DBNull.Value,
                     x.con_total_venta,
@@ -191,7 +195,7 @@ namespace webApiIFRS.Models
                     x.con_estado_contrato,
                     x.con_num_repactaciones,
                     x.con_anos_arriendo,
-                    x.con_derechos_servicios_sin_iva
+                    x.con_derechos_servicios_con_iva
                 );
             }
             return dt;
@@ -421,15 +425,17 @@ namespace webApiIFRS.Models
                 .ToListAsync();
 
             dt.Columns.Add("numero_contrato", typeof(string)); 
-            dt.Columns.Add("numero_comprobante", typeof(string));
-            dt.Columns.Add("total_serv_der_sin_iva", typeof(decimal)); 
+            dt.Columns.Add("numero_comprobante", typeof(int));
+            dt.Columns.Add("total_serv_der_sin_iva", typeof(decimal));
+            dt.Columns.Add("total_serv_der_con_iva", typeof(decimal));
 
             foreach (var p in derechosServicios)
             {
                 dt.Rows.Add(
                     p.numero_contrato,
                     p.numero_comprobante,
-                    p.total_serv_der_sin_iva
+                    p.total_serv_der_sin_iva, 
+                    p.total_serv_der_con_iva
                     );
             }
 

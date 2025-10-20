@@ -7,6 +7,7 @@ namespace webApiIFRS.Models
         [Key]
         public int con_id { get; set; }
         public string con_num_con { get; set; }
+        public int con_num_comprobante { get; set; }
         public int? con_id_tipo_ingreso { get; set; }
         public DateTime? con_fecha_ingreso { get; set; }
         public decimal? con_total_venta { get; set; }
@@ -26,12 +27,13 @@ namespace webApiIFRS.Models
         public string con_estado_contrato { get; set; }
         public int? con_num_repactaciones { get; set; }
         public int? con_anos_arriendo { get; set; }
-        public decimal? con_derechos_servicios_sin_iva { get; set; } 
+        public decimal? con_derechos_servicios_con_iva { get; set; } 
 
         public Contrato()
         {
             con_id = 0;
             con_num_con = string.Empty;
+            con_num_comprobante = 0;
             con_id_tipo_ingreso = 0;
             con_fecha_ingreso = DateTime.Now;
             con_total_venta = 0; 
@@ -51,7 +53,7 @@ namespace webApiIFRS.Models
             con_estado_contrato = string.Empty; 
             con_num_repactaciones = 0;
             con_anos_arriendo = 0;
-            con_derechos_servicios_sin_iva = 0;
+            con_derechos_servicios_con_iva = 0;
         }
     }
 }
