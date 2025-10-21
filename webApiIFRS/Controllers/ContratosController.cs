@@ -175,11 +175,6 @@ namespace webApiIFRS.Controllers
 
             dtDerechosServicios = await _connContext.ObtenerDerechosServiciosSinIva(2025); 
 
-            if(!dtContratos.Columns.Contains("con_derechos_servicios_con_iva"))
-            {
-                dtContratos.Columns.Add("con_derechos_servicios_con_iva", typeof(decimal)); 
-            }
-
             var derechosServiciosPorContrato = dtDerechosServicios
                 .AsEnumerable()
                 .GroupBy(r => r.Field<int>("numero_comprobante"))
@@ -188,7 +183,12 @@ namespace webApiIFRS.Controllers
                     g => g.Sum(r => Convert.ToDecimal(r["total_serv_der_con_iva"]))
                 );
 
-            foreach(DataRow row in dtContratos.Rows)
+            if (!dtContratos.Columns.Contains("con_derechos_servicios_con_iva"))
+            {
+                dtContratos.Columns.Add("con_derechos_servicios_con_iva", typeof(decimal));
+            }
+
+            foreach (DataRow row in dtContratos.Rows)
             {
                 var contrato = row.Field<int>("con_num_comprobante");
                 if (contrato != 0 &&
@@ -198,9 +198,49 @@ namespace webApiIFRS.Controllers
                 }
                 else
                 {
-                    row["con_derechos_servicios_con_iva"] = 0L; 
+                    row["con_derechos_servicios_con_iva"] = 0m; 
                 }
             }
+
+            /*RECORRO DTCONTRATO PARA REALIZAR LOS CALCULOS*/
+            foreach (DataRow row in dtContratos.Rows)
+            {
+                int numComprobante = row.Field<int>("con_num_comprobante");
+                decimal pie = row.Field<decimal>("con_pie");
+                int cuotas = row.Field<int>("con_cuotas_pactadas");
+                decimal valorCuota = row.Field<decimal>("con_valor_cuota_pactada");
+                decimal precioBase = row.Field<decimal>("con_precio_base");     
+                decimal totalCredito = row.Field<decimal>("con_total_credito");
+                int tipoIngreso = row.Field<int>("con_id_tipo_ingreso");
+
+                // derechos por contrato (si no hay, 0m)
+                decimal totalDerechos = 0m;
+                if (numComprobante != 0 &&
+                    derechosServiciosPorContrato.TryGetValue(numComprobante, out var td))
+                {
+                    totalDerechos = td;
+                }
+
+                // total venta 
+                decimal totalVenta = pie + (cuotas * valorCuota);
+
+                // si es Ingreso de Nichos (1), cuotas=0 y totalCredito=0 => contado: suma derechos
+                if (tipoIngreso == 1 && cuotas == 0 && totalCredito == 0)
+                {
+                    totalVenta += totalDerechos;
+                    pie = totalVenta;
+                }
+
+                // precio base neto de derechos (si precioBase original incluye derechos)
+                decimal precioBaseMenosDerechos = precioBase - totalDerechos;
+
+                // setea resultados en la misma fila
+                row["con_derechos_servicios_con_iva"] = totalDerechos;
+                row["con_total_venta"] = totalVenta;
+                row["con_precio_base"] = precioBaseMenosDerechos;
+                row["con_pie"] = pie; 
+            }
+
 
             /*OBTENGO TODA LA INFORMACION MENOS TOTAL_VENTA PARA LOS CONTRATOS DUPLICADOS Y SE AGREGAN LOS CONTRATOS QUE ESTABAN DUPLICADOS AHORA CALCULANDO SU TOTALVENTA*/
             foreach (var con in contratosDuplicados)
@@ -225,13 +265,14 @@ namespace webApiIFRS.Controllers
                 }
                 else
                 {
-                    filaNew["con_derechos_servicios_con_iva"] = 0L;
+                    filaNew["con_derechos_servicios_con_iva"] = 0m;
                 }
 
                 //si tipo de ingreso es Ingreso de Nichos y cuotas es igual a 0 y total credito = 0 es pago al CONTADO. 
                 if (tipoIngreso == 1 && cuotasPactadas == 0 && totalCredito == 0)
                 {
-                    totalVenta = totalVenta + totalDerechos; 
+                    totalVenta += totalDerechos;
+                    pie = totalVenta;
                 }
 
                 decimal precioBaseMenosDerSerConIva = precioBase - totalDerechos; 
@@ -256,9 +297,6 @@ namespace webApiIFRS.Controllers
                 filaNew["con_estado_contrato"] = busqueda[18].ToString();
                 filaNew["con_num_repactaciones"] = busqueda[19].ToString();
                 filaNew["con_anos_arriendo"] = busqueda[20].ToString();
-
-                
-
                 dtContratos.Rows.Add(filaNew);                
             }
 
