@@ -92,6 +92,7 @@ namespace webApiIFRS.Models
             dt.Columns.Add("con_precio_base", typeof(decimal));
             dt.Columns.Add("con_pie", typeof(decimal));
             dt.Columns.Add("con_total_credito", typeof(decimal));
+            dt.Columns.Add("con_intereses", typeof(decimal));
             dt.Columns.Add("con_cuotas_pactadas", typeof(int));
             dt.Columns.Add("con_valor_cuota_pactada", typeof(decimal));
             dt.Columns.Add("con_tasa_interes", typeof(int));
@@ -119,6 +120,7 @@ namespace webApiIFRS.Models
                     x.con_precio_base,
                     x.con_pie,
                     x.con_total_credito,
+                    x.con_intereses, 
                     x.con_cuotas_pactadas,
                     x.con_valor_cuota_pactada,
                     x.con_tasa_interes,
@@ -155,6 +157,7 @@ namespace webApiIFRS.Models
             dt.Columns.Add("con_precio_base", typeof(decimal));
             dt.Columns.Add("con_pie", typeof(decimal));
             dt.Columns.Add("con_total_credito", typeof(decimal));
+            dt.Columns.Add("con_intereses",typeof(decimal));
             dt.Columns.Add("con_cuotas_pactadas", typeof(int));
             dt.Columns.Add("con_valor_cuota_pactada", typeof(decimal));
             dt.Columns.Add("con_tasa_interes", typeof(decimal));
@@ -182,6 +185,7 @@ namespace webApiIFRS.Models
                     x.con_precio_base,
                     x.con_pie,
                     x.con_total_credito,
+                    x.con_intereses,
                     x.con_cuotas_pactadas,
                     x.con_valor_cuota_pactada,
                     x.con_tasa_interes,
@@ -396,6 +400,7 @@ namespace webApiIFRS.Models
             dt.Columns.Add("ing_a_diferir", typeof(decimal));
             dt.Columns.Add("ing_nro_cuota", typeof(int));
             dt.Columns.Add("ing_interes_diferido", typeof(decimal));
+            dt.Columns.Add("ing_fecha_devengo", typeof(DateTime));
             dt.Columns.Add("ing_fecha_contab", typeof(DateTime));
             dt.Columns.Add("ing_estado_contab", typeof(int));
 
@@ -407,6 +412,7 @@ namespace webApiIFRS.Models
                     p.ing_precio_base,
                     p.ing_a_diferir,
                     p.ing_nro_cuota,
+                    p.ing_fecha_devengo,
                     p.ing_interes_diferido,
                     (object?)p.ing_fecha_contab ?? DBNull.Value,
                     p.ing_estado_contab
@@ -442,5 +448,9 @@ namespace webApiIFRS.Models
             return dt;
         }
 
+        public async Task ActualizarInteresesPorDevengarSegunContrato()
+        {
+            await Database.ExecuteSqlRawAsync("SP_IFRS_ACTUALIZA_INTERESES_POR_CONTRATO"); 
+        }
     }
 }

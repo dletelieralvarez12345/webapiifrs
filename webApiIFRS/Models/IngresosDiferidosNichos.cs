@@ -13,6 +13,7 @@ namespace webApiIFRS.Models
         public decimal ing_a_diferir { get; set; }
         public int ing_nro_cuota { get; set; }  
         public decimal ing_interes_diferido { get; set; }
+        public DateTime? ing_fecha_devengo { get; set; }
         public DateTime? ing_fecha_contab { get; set; }
         public int ing_estado_contab { get; set; }
         public DateTime ing_fecha { get; set; }
@@ -24,7 +25,8 @@ namespace webApiIFRS.Models
             ing_a_diferir = 0;
             ing_nro_cuota = 0;
             ing_interes_diferido = 0;
-            ing_fecha_contab= DateTime.Now;
+            ing_fecha_devengo = DateTime.Now;
+            ing_fecha_contab = DateTime.Now;
             ing_estado_contab = 0;
             ing_fecha = DateTime.Now;
         }

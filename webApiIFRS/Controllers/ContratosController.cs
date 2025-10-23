@@ -3,11 +3,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.VisualBasic;
 using System.Data;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Text.Json.Serialization;
+using System.Transactions;
 using webApiIFRS.Models;
 using static System.Net.Mime.MediaTypeNames;
 
@@ -150,6 +152,7 @@ namespace webApiIFRS.Controllers
             DateTime fechaVtoOriginal = new DateTime();
             DateTime fechaUltPagoCuota = new DateTime();
             DateTime fechaUltPagoCuotaMod = new DateTime();
+            DateTime fechaIngresoContrato = new DateTime(); 
 
             var interesesPorDevengar = new List<InteresesPorDevengar>();
             var ingresosDiferidos = new List<IngresosDiferidosNichos>();
@@ -205,6 +208,7 @@ namespace webApiIFRS.Controllers
             /*RECORRO DTCONTRATO PARA REALIZAR LOS CALCULOS*/
             foreach (DataRow row in dtContratos.Rows)
             {
+                string numContrato = row.Field<string>("con_num_con");
                 int numComprobante = row.Field<int>("con_num_comprobante");
                 decimal pie = row.Field<decimal>("con_pie");
                 int cuotas = row.Field<int>("con_cuotas_pactadas");
@@ -223,16 +227,20 @@ namespace webApiIFRS.Controllers
 
                 // total venta 
                 decimal totalVenta = pie + (cuotas * valorCuota);
+                decimal precioBaseMenosDerechos = 0;
 
                 // si es Ingreso de Nichos (1), cuotas=0 y totalCredito=0 => contado: suma derechos
-                if (tipoIngreso == 1 && cuotas == 0 && totalCredito == 0)
+                if (tipoIngreso == 1 && numContrato == numComprobante.ToString() && cuotas == 0 && totalCredito == 0)
                 {
                     totalVenta += totalDerechos;
                     pie = totalVenta;
+                    precioBaseMenosDerechos = totalVenta - totalDerechos;
                 }
-
-                // precio base neto de derechos (si precioBase original incluye derechos)
-                decimal precioBaseMenosDerechos = precioBase - totalDerechos;
+                else
+                {
+                    // precio base neto de derechos (si precioBase original incluye derechos)
+                    precioBaseMenosDerechos = precioBase - totalDerechos;
+                }
 
                 // setea resultados en la misma fila
                 row["con_derechos_servicios_con_iva"] = totalDerechos;
@@ -250,9 +258,10 @@ namespace webApiIFRS.Controllers
                     .FirstOrDefault();
         
                 DataRow filaNew = dtContratos.NewRow();
+                string numeroComprobante = busqueda[2].ToString(); 
                 decimal pie = decimal.Parse(busqueda[6].ToString()); 
-                int cuotasPactadas = int.Parse(busqueda[8].ToString()); 
-                decimal valorCuota = decimal.Parse(busqueda[9].ToString());
+                int cuotasPactadas = int.Parse(busqueda[9].ToString()); 
+                decimal valorCuota = decimal.Parse(busqueda[10].ToString());
                 decimal precioBase = decimal.Parse(busqueda[5].ToString());
                 decimal totalDerechos = 0;
                 decimal totalCredito = decimal.Parse(busqueda[7].ToString());
@@ -269,7 +278,7 @@ namespace webApiIFRS.Controllers
                 }
 
                 //si tipo de ingreso es Ingreso de Nichos y cuotas es igual a 0 y total credito = 0 es pago al CONTADO. 
-                if (tipoIngreso == 1 && cuotasPactadas == 0 && totalCredito == 0)
+                if (tipoIngreso == 1 && con == numeroComprobante &&  cuotasPactadas == 0 && totalCredito == 0)
                 {
                     totalVenta += totalDerechos;
                     pie = totalVenta;
@@ -286,17 +295,17 @@ namespace webApiIFRS.Controllers
                 filaNew["con_total_credito"] = totalCredito;
                 filaNew["con_cuotas_pactadas"] = cuotasPactadas;
                 filaNew["con_valor_cuota_pactada"] = valorCuota;
-                filaNew["con_tasa_interes"] = busqueda[10].ToString();
-                filaNew["con_capacidad_sepultura"] = busqueda[11].ToString();
-                filaNew["con_tipo_compra"] = busqueda[12].ToString();
-                filaNew["con_terminos_pago"] = busqueda[13].ToString();
-                filaNew["con_nombre_cajero"] = busqueda[14].ToString();
-                filaNew["con_fecha_primer_vcto_ori"] = busqueda[15].ToString();
-                filaNew["con_tipo_movimiento"] = busqueda[16].ToString();
-                filaNew["con_cuotas_pactadas_mod"] = busqueda[17].ToString();
-                filaNew["con_estado_contrato"] = busqueda[18].ToString();
-                filaNew["con_num_repactaciones"] = busqueda[19].ToString();
-                filaNew["con_anos_arriendo"] = busqueda[20].ToString();
+                filaNew["con_tasa_interes"] = busqueda[11].ToString();
+                filaNew["con_capacidad_sepultura"] = busqueda[12].ToString();
+                filaNew["con_tipo_compra"] = busqueda[13].ToString();
+                filaNew["con_terminos_pago"] = busqueda[14].ToString();
+                filaNew["con_nombre_cajero"] = busqueda[15].ToString();
+                filaNew["con_fecha_primer_vcto_ori"] = busqueda[16].ToString();
+                filaNew["con_tipo_movimiento"] = busqueda[17].ToString();
+                filaNew["con_cuotas_pactadas_mod"] = busqueda[18].ToString();
+                filaNew["con_estado_contrato"] = busqueda[19].ToString();
+                filaNew["con_num_repactaciones"] = busqueda[20].ToString();
+                filaNew["con_anos_arriendo"] = busqueda[21].ToString();
                 dtContratos.Rows.Add(filaNew);                
             }
 
@@ -422,6 +431,7 @@ namespace webApiIFRS.Controllers
                     double saldoInicial = Convert.ToDouble(dtContratos.Rows[i]["con_total_credito"]);
                     double valorCuota = Convert.ToDouble(dtContratos.Rows[i]["con_valor_cuota_pactada"]);
                     fechaUltPagoCuota = Convert.ToDateTime(dtContratos.Rows[i]["con_fecha_ingreso"]).Date;
+                    fechaIngresoContrato = Convert.ToDateTime(dtContratos.Rows[i]["con_fecha_ingreso"]).Date;
 
                     //intereses diferidos
                     decimal interesDiferido = 0;
@@ -480,6 +490,7 @@ namespace webApiIFRS.Controllers
                         dtIngresosDiferidos.Columns.Add("ing_a_diferir", typeof(decimal));
                         dtIngresosDiferidos.Columns.Add("ing_nro_cuota", typeof(int));
                         dtIngresosDiferidos.Columns.Add("ing_interes_diferido", typeof(decimal));
+                        dtIngresosDiferidos.Columns.Add("ing_fecha_devengo", typeof(DateTime)); 
                         dtIngresosDiferidos.Columns.Add("ing_fecha_contab", typeof(DateTime));
                         dtIngresosDiferidos.Columns.Add("ing_estado_contab", typeof(int));
                     }
@@ -616,6 +627,8 @@ namespace webApiIFRS.Controllers
                         for (int i3 = 0; i3 < mesesArriendo; i3++)
                         {
                             int cuota = i3 + 1;
+                            DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(cuota - 1); //fechaVtoOriginal.AddMonths(cuota - 1);
+                            DateTime fechaDevengo = fechaIngreso_.AddMonths(1); 
 
                             try
                             {
@@ -633,7 +646,8 @@ namespace webApiIFRS.Controllers
                                         filaNuevaIng["ing_precio_base"] = precioBase;
                                         filaNuevaIng["ing_a_diferir"] = calculoIngresosADiferir;
                                         filaNuevaIng["ing_interes_diferido"] = interesDiferido;
-                                        filaNuevaIng["ing_fecha_contab"] = GetUltimoDiaDelMes(fechaVtoOriginal.AddMonths(cuota - 1));
+                                        filaNuevaIng["ing_fecha_devengo"] = fechaDevengo; // GetFechaVctoMasUnMes(fechaVtoOriginal);
+                                        filaNuevaIng["ing_fecha_contab"] = DBNull.Value;  // GetUltimoDiaDelMes(fechaVtoOriginal.AddMonths(cuota - 1));
                                         filaNuevaIng["ing_estado_contab"] = 0;
                                         dtIngresosDiferidos.Rows.Add(filaNuevaIng);
                                     }
@@ -1063,7 +1077,8 @@ namespace webApiIFRS.Controllers
 
             using (StreamWriter logWriterPaso6 = new StreamWriter(logPath, append: true))
             {
-                
+                using var transaction = await _connContext.Database.BeginTransactionAsync();
+
                     // Cargar claves existentes desde la base de datos
                     var clavesExistentes = await _connContext.InteresesPorDevengar
                         .Select(x => new { x.int_num_con, x.int_nro_cuota })
@@ -1105,7 +1120,7 @@ namespace webApiIFRS.Controllers
                                     int_fecha = DateTime.Now
                                 };
 
-                                await _connContext.InteresesPorDevengar.AddAsync(intereses);
+                                await _connContext.InteresesPorDevengar.AddAsync(intereses);                                
 
                                 // Opcional: Agregar la nueva clave al HashSet para evitar duplicados en el mismo lote
                                 hashClaves.Add((numCon, nroCuota));
@@ -1113,6 +1128,11 @@ namespace webApiIFRS.Controllers
                             }
                             catch (Exception ex)
                             {
+                                //revierte en caso de error
+                                if (transaction.GetDbTransaction().Connection != null)
+                                {
+                                    await transaction.RollbackAsync();
+                                }
                                 await logWriterPaso6.WriteLineAsync($"Error al preparar datos de intereses por devengar (numContrato: {numCon}, numCuota: {nroCuota}) - Excepcion: {ex.Message} - {DateTime.Now}");
                             }
                         }
@@ -1126,6 +1146,8 @@ namespace webApiIFRS.Controllers
                     {
                         //aqui guarda en la BD                        
                         await _connContext.SaveChangesAsync();
+                        await _connContext.ActualizarInteresesPorDevengarSegunContrato();
+                        await transaction.CommitAsync(); //confirma todo   
                         _interesesGuardados = registrosInsertados; 
                     }
                     catch (Exception ex)
@@ -1164,6 +1186,7 @@ namespace webApiIFRS.Controllers
                                 ing_a_diferir = GetDecimalValue(row,"ing_a_diferir"), 
                                 ing_nro_cuota = GetIntValue(row, "ing_nro_cuota"),
                                 ing_interes_diferido = GetDecimalValue(row, "ing_interes_diferido"),
+                                ing_fecha_devengo = GetDateValue(row, "ing_fecha_devengo"),
                                 ing_fecha_contab = GetDateValue(row, "ing_fecha_contab"),
                                 ing_estado_contab = GetIntValue(row, "ing_estado_contab"),
                                 ing_fecha = DateTime.Now

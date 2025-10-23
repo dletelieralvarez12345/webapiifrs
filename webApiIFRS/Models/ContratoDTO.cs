@@ -10,6 +10,7 @@
         public decimal? con_precio_base { get; set; }
         public decimal? con_pie { get; set; }
         public decimal? con_total_credito { get; set; }
+        public decimal? con_intereses { get; set; }
         public int? con_cuotas_pactadas { get; set; }
         public decimal? con_valor_cuota_pactada { get; set; }
         public decimal? con_tasa_interes { get; set; }
@@ -36,6 +37,7 @@
             con_pie = 0;
             con_total_credito = 0;
             con_cuotas_pactadas = 0;
+            con_intereses = 0;
             con_valor_cuota_pactada = 0;
             con_tasa_interes = 0;
             con_capacidad_sepultura = 0;
