@@ -13,7 +13,7 @@
         public decimal? con_intereses { get; set; }
         public int? con_cuotas_pactadas { get; set; }
         public decimal? con_valor_cuota_pactada { get; set; }
-        public decimal? con_tasa_interes { get; set; }
+        public int? con_tasa_interes { get; set; }
         public int? con_capacidad_sepultura { get; set; }
         public string con_tipo_compra { get; set; }
         public string con_terminos_pago { get; set; }

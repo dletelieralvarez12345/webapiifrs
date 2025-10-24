@@ -160,7 +160,7 @@ namespace webApiIFRS.Models
             dt.Columns.Add("con_intereses",typeof(decimal));
             dt.Columns.Add("con_cuotas_pactadas", typeof(int));
             dt.Columns.Add("con_valor_cuota_pactada", typeof(decimal));
-            dt.Columns.Add("con_tasa_interes", typeof(decimal));
+            dt.Columns.Add("con_tasa_interes", typeof(int));
             dt.Columns.Add("con_capacidad_sepultura", typeof(int));
             dt.Columns.Add("con_tipo_compra", typeof(string));
             dt.Columns.Add("con_terminos_pago", typeof(string));
@@ -412,8 +412,8 @@ namespace webApiIFRS.Models
                     p.ing_precio_base,
                     p.ing_a_diferir,
                     p.ing_nro_cuota,
-                    p.ing_fecha_devengo,
                     p.ing_interes_diferido,
+                    p.ing_fecha_devengo,
                     (object?)p.ing_fecha_contab ?? DBNull.Value,
                     p.ing_estado_contab
                 );

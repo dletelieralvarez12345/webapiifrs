@@ -26,7 +26,9 @@ namespace webApiIFRS.Controllers
         private readonly ConnContextSICM _connSICM; 
         private readonly ConnContextSICMPBI _connSICMPBI;
         public static int _interesesGuardados = 0;
-        public static int _ingresosGuardados = 0; 
+        public static int _ingresosGuardados = 0;
+        public static int _interesesDevExistentes = 0;
+        public static int _ingresosDifNichosExistentes = 0;
         public ContratosController(ConnContext connContext, 
             ConnContextCTACTE connCtaCte, 
             ConnContextSEPULTA connSepulta, 
@@ -319,11 +321,11 @@ namespace webApiIFRS.Controllers
                 {
                     foreach (DataRow row in dtContratos.Rows)
                     {
-                        //bool existeContratoIngresado = dtContratosOriginal.AsEnumerable().Any(x =>
-                        //x["con_num_con"].ToString().Trim() == row["con_num_con"].ToString().Trim());
+                        var numCon = row["con_num_con"].ToString().Trim();
+
+                        bool existeContratoIngresado = await _connContext.Contrato
+                            .AnyAsync(c => c.con_num_con == numCon); 
                         
-                        //if (!existeContratoIngresado)
-                        //{
                             try
                             {
                                 Contrato contrato = new Contrato
@@ -351,17 +353,20 @@ namespace webApiIFRS.Controllers
                                     con_anos_arriendo = GetIntValue(row, "con_anos_arriendo"),
                                     con_derechos_servicios_con_iva = GetDecimalValue(row, "con_derechos_servicios_con_iva")
                                 };
-                                await _connContext.Contrato.AddAsync(contrato);
+
+                                if (!existeContratoIngresado)
+                                {
+                                    await _connContext.Contrato.AddAsync(contrato);
+                                }
+                                else {
+                                    contContratosExistentes++; 
+                                    await logWriterContratos.WriteLineAsync($"Contrato {contrato.con_num_con} ya existe. Omitido");
+                                }
                             }
                             catch (Exception ex)
                             {
                                 await logWriterContratos.WriteLineAsync($"Error al preparar datos de contratos (numContrato: {GetStringValue(row, "con_num_con")}) - Excepcion: {ex.Message} - {DateTime.Now}");
                             }
-                        //}
-                        //else
-                        //{
-                        //    contContratosExistentes++;
-                        //}
                     }
                 }
 
@@ -1010,11 +1015,11 @@ namespace webApiIFRS.Controllers
 
                     registrosInteresesEsperados = dtInteresPorDev.Rows.Count,
                     registrosInteresesInsertados = _interesesGuardados,
-                    registrosInteresesYaExisten = 0,
+                    registrosInteresesYaExisten = _interesesDevExistentes,
 
                     registrosIngresosEsperados = dtIngresosDiferidos.Rows.Count,
                     registrosIngresosInsertados = _ingresosGuardados,
-                    registrosIngresosYaExisten = 0
+                    registrosIngresosYaExisten = _ingresosDifNichosExistentes
                 });    
             }
         }
@@ -1028,7 +1033,6 @@ namespace webApiIFRS.Controllers
             {
                 using var transaction = await _connContext.Database.BeginTransactionAsync();
 
-                    // Cargar claves existentes desde la base de datos
                     var clavesExistentes = await _connContext.InteresesPorDevengar
                         .Select(x => new { x.int_num_con, x.int_nro_cuota })
                         .ToListAsync();
@@ -1038,16 +1042,19 @@ namespace webApiIFRS.Controllers
                     clavesExistentes.Select(c => (c.int_num_con.Trim(), c.int_nro_cuota)));
 
                     int registrosInsertados = 0;
+                    int registrosDuplicados = 0;
 
                     foreach (DataRow row in dtInteresPorDev.Rows)
                     {
                         string numCon = GetStringValue(row, "int_num_con").Trim();
                         int nroCuota = GetIntValue(row, "int_nro_cuota");
 
-                        //Valida si ya existe en el HashSet
-                        if (!hashClaves.Contains((numCon, nroCuota)))
+                        try
                         {
-                            try
+                            bool existeEnBD = await _connContext.InteresesPorDevengar
+                                             .AnyAsync(x => x.int_num_con == numCon && x.int_nro_cuota == nroCuota);
+
+                            if (!existeEnBD)
                             {
                                 var intereses = new InteresesPorDevengar
                                 {
@@ -1069,25 +1076,27 @@ namespace webApiIFRS.Controllers
                                     int_fecha = DateTime.Now
                                 };
 
-                                await _connContext.InteresesPorDevengar.AddAsync(intereses);                                
+                                await _connContext.InteresesPorDevengar.AddAsync(intereses);
 
                                 // Opcional: Agregar la nueva clave al HashSet para evitar duplicados en el mismo lote
                                 hashClaves.Add((numCon, nroCuota));
-                                registrosInsertados++; 
+                                registrosInsertados++;
                             }
-                            catch (Exception ex)
+                            else
                             {
-                                //revierte en caso de error
-                                if (transaction.GetDbTransaction().Connection != null)
-                                {
-                                    await transaction.RollbackAsync();
-                                }
-                                await logWriterPaso6.WriteLineAsync($"Error al preparar datos de intereses por devengar (numContrato: {numCon}, numCuota: {nroCuota}) - Excepcion: {ex.Message} - {DateTime.Now}");
+                                registrosDuplicados++;
+                                _interesesDevExistentes = registrosDuplicados; 
+                                await logWriterPaso6.WriteLineAsync($"Registro duplicado en BD (numContrato: {numCon}, numCuota: {nroCuota}). Omitido - {DateTime.Now}");
                             }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            contIntDev++;
+                            //revierte en caso de error
+                            if (transaction.GetDbTransaction().Connection != null)
+                            {
+                                await transaction.RollbackAsync();
+                            }
+                            await logWriterPaso6.WriteLineAsync($"Error al preparar datos de intereses por devengar (numContrato: {numCon}, numCuota: {nroCuota}) - Excepcion: {ex.Message} - {DateTime.Now}");
                         }
                     }
 
@@ -1097,7 +1106,11 @@ namespace webApiIFRS.Controllers
                         await _connContext.SaveChangesAsync();
                         await _connContext.ActualizarInteresesPorDevengarSegunContrato();
                         await transaction.CommitAsync(); //confirma todo   
-                        _interesesGuardados = registrosInsertados; 
+                        _interesesGuardados = registrosInsertados;
+
+                        await logWriterPaso6.WriteLineAsync(
+                            $"intereses por devengar insertados: {registrosInsertados}, duplicados omitidos: {registrosDuplicados} - {DateTime.Now}"
+                        );
                     }
                     catch (Exception ex)
                     {
@@ -1117,22 +1130,32 @@ namespace webApiIFRS.Controllers
             using (StreamWriter logWriterPaso7 = new StreamWriter(logPath, append: true))
             {
                 int registrosInsertados = 0;
+                int registrosDuplicados = 0;
+
+                var clavesExistentes = await _connContext.IngresosDiferidos
+                                        .Select(x => new { x.ing_num_con, x.ing_nro_cuota })
+                                        .ToListAsync();
+
+                var hashClaves = new HashSet<(string, int)>(
+                                    clavesExistentes.Select(c => (c.ing_num_con.Trim(), c.ing_nro_cuota))
+                                );
 
                 foreach (DataRow row in dtIngresosDiferidos.Rows)
                 {
-                    bool existeCuota = dtIngresosDiferidosParaValidar.AsEnumerable().Any(x =>
-                    x["ing_num_con"].ToString().Trim() == row["ing_num_con"].ToString().Trim() &&
-                    Convert.ToInt32(x["ing_nro_cuota"]) == Convert.ToInt32(row["ing_nro_cuota"]));
+                    string numCon = GetStringValue(row, "ing_num_con").Trim();
+                    int nroCuota = GetIntValue(row, "ing_nro_cuota");
 
-                    if (!existeCuota)
+                    bool yaExiste = hashClaves.Contains((numCon, nroCuota));
+
+                    if (!yaExiste)
                     {
                         try
                         {
-                            IngresosDiferidosNichos ingresos = new IngresosDiferidosNichos
+                            var ingresos = new IngresosDiferidosNichos
                             {
                                 ing_num_con = GetStringValue(row, "ing_num_con"),
                                 ing_precio_base = GetDecimalValue(row, "ing_precio_base"),
-                                ing_a_diferir = GetDecimalValue(row,"ing_a_diferir"), 
+                                ing_a_diferir = GetDecimalValue(row, "ing_a_diferir"),
                                 ing_nro_cuota = GetIntValue(row, "ing_nro_cuota"),
                                 ing_interes_diferido = GetDecimalValue(row, "ing_interes_diferido"),
                                 ing_fecha_devengo = GetDateValue(row, "ing_fecha_devengo"),
@@ -1141,21 +1164,33 @@ namespace webApiIFRS.Controllers
                                 ing_fecha = DateTime.Now
                             };
                             await _connContext.IngresosDiferidos.AddAsync(ingresos);
-                            registrosInsertados++; 
+                            registrosInsertados++;
+                            hashClaves.Add((numCon, nroCuota));
                         }
                         catch (Exception ex)
                         {
                             await logWriterPaso7.WriteLineAsync($"Error al preparar datos de ingresos diferidos (numContrato: {GetStringValue(row, "ing_num_con")}, numCuota: {GetIntValue(row, "ing_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
                         }
                     }
-                    //else { cont++; }
+                    else
+                    {
+                        registrosDuplicados++;
+                        _ingresosDifNichosExistentes = registrosDuplicados;
+                        await logWriterPaso7.WriteLineAsync(
+                            $"Registro duplicado omitido en Ingresos Diferidos Nichos (numContrato: {numCon}, numCuota: {nroCuota}) - {DateTime.Now}"
+                        );
+                    }
                 }
 
                 try
                 {
                     //guarda en la BD
                     await _connContext.SaveChangesAsync();
-                    _ingresosGuardados = registrosInsertados; 
+                    _ingresosGuardados = registrosInsertados;
+
+                    await logWriterPaso7.WriteLineAsync(
+                        $"Ingresos diferidos insertados: {registrosInsertados}, duplicados omitidos: {registrosDuplicados} - {DateTime.Now}"
+                    );
                 }
                 catch (Exception ex)
                 {
