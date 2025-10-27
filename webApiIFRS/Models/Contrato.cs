@@ -29,6 +29,7 @@ namespace webApiIFRS.Models
         public int? con_num_repactaciones { get; set; }
         public int? con_anos_arriendo { get; set; }
         public decimal? con_derechos_servicios_con_iva { get; set; } 
+        public DateTime? con_fecha_termino_producto { get; set; }
 
         public Contrato()
         {
@@ -56,6 +57,7 @@ namespace webApiIFRS.Models
             con_num_repactaciones = 0;
             con_anos_arriendo = 0;
             con_derechos_servicios_con_iva = 0;
+            con_fecha_termino_producto = null;
         }
     }
 }

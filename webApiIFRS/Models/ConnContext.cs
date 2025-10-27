@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Client;
 using System.Data;
+using System.Security.Cryptography.Xml;
 using System.Threading.Tasks;
 
 namespace webApiIFRS.Models
@@ -24,7 +25,9 @@ namespace webApiIFRS.Models
         public DbSet<PagosRealizadosTerreno> pagosRealizadosTerreno { get; set; } = null;
         public DbSet<Modificaciones> Modificaciones { get; set; } = null;
         public DbSet<FechaPrimerVtoBOV> fechaPrimerVtoBOV { get; set; } = null;
-        public DbSet<DerechosServicios> DerechosServicios { get; set; } = null; 
+        public DbSet<DerechosServicios> DerechosServicios { get; set; } = null;
+        public DbSet<TerminoProducto> TerminoProducto { get; set; } = null;
+        public DbSet<IngresosDiferidosBovedas> IngresosDiferidosBovedas { get; set; } = null; 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -35,6 +38,7 @@ namespace webApiIFRS.Models
             modelBuilder.Entity<FechaPrimerVtoBOV>().HasNoKey();
             modelBuilder.Entity<ContratoDTO>().HasNoKey();
             modelBuilder.Entity<DerechosServicios>().HasNoKey();
+            modelBuilder.Entity<TerminoProducto>().HasNoKey();
 
             modelBuilder.Entity<Contrato>(entity =>
             {
@@ -106,7 +110,8 @@ namespace webApiIFRS.Models
             dt.Columns.Add("con_estado_contrato", typeof(string));
             dt.Columns.Add("con_num_repactaciones", typeof(int));   
             dt.Columns.Add("con_anos_arriendo", typeof(int));
-            dt.Columns.Add("con_derechos_servicios_con_iva", typeof(decimal)); 
+            dt.Columns.Add("con_derechos_servicios_con_iva", typeof(decimal));
+            dt.Columns.Add("con_fecha_termino_producto", typeof(DateTime)); 
 
             foreach (var x in contratos)
             {
@@ -134,7 +139,8 @@ namespace webApiIFRS.Models
                     x.con_estado_contrato,
                     x.con_num_repactaciones,
                     x.con_anos_arriendo, 
-                    x.con_derechos_servicios_con_iva
+                    x.con_derechos_servicios_con_iva, 
+                    x.con_fecha_termino_producto
                 );
             }
 
@@ -172,6 +178,7 @@ namespace webApiIFRS.Models
             dt.Columns.Add("con_num_repactaciones", typeof(int));
             dt.Columns.Add("con_anos_arriendo", typeof(int));
             dt.Columns.Add("con_derechos_servicios_con_iva", typeof(decimal));
+            dt.Columns.Add("con_fecha_termino_producto", typeof(DateTime));
 
             foreach (var x in contratos)
             {
@@ -199,7 +206,8 @@ namespace webApiIFRS.Models
                     x.con_estado_contrato,
                     x.con_num_repactaciones,
                     x.con_anos_arriendo,
-                    x.con_derechos_servicios_con_iva
+                    x.con_derechos_servicios_con_iva,
+                    x.con_fecha_termino_producto
                 );
             }
             return dt;
@@ -452,5 +460,40 @@ namespace webApiIFRS.Models
         {
             await Database.ExecuteSqlRawAsync("SP_IFRS_ACTUALIZA_INTERESES_POR_CONTRATO"); 
         }
-    }
+
+        public async Task<DataTable> obtenerFechaTerminoProducto()
+        {
+            DataTable dt = new DataTable(); 
+            var terminoProducto = await TerminoProducto
+                .FromSqlInterpolated($"EXEC SP_IFRS_GETFECHATERMINO_PRODUCTO")
+                .ToListAsync();
+            
+            dt.Columns.Add("codigo_producto", typeof(string));
+            dt.Columns.Add("descripcion_producto", typeof(string)); 
+            dt.Columns.Add("almacen", typeof(int));
+            dt.Columns.Add("codigo_ubicacion_contrato", typeof(string)); 
+            dt.Columns.Add("estado_serie", typeof(int));
+            dt.Columns.Add("fecha_termino_produccion", typeof(DateTime)); 
+            dt.Columns.Add("fecha_contrato", typeof(DateTime));
+            dt.Columns.Add("ubi_nombre_completo", typeof(string));
+            dt.Columns.Add("numero_contrato", typeof(string));
+
+            foreach (var p in terminoProducto)
+            {
+                dt.Rows.Add(
+                    p.codigo_producto,
+                    p.descripcion_producto,
+                    p.almacen,
+                    p.codigo_ubicacion_contrato,
+                    p.estado_serie,
+                    p.fecha_termino_produccion,
+                    p.fecha_contrato,
+                    p.ubi_nombre_completo,
+                    p.numero_contrato
+                 );
+            }
+
+            return dt; 
+        }
+    } 
 }

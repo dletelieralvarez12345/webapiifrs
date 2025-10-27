@@ -29,6 +29,9 @@ namespace webApiIFRS.Controllers
         public static int _ingresosGuardados = 0;
         public static int _interesesDevExistentes = 0;
         public static int _ingresosDifNichosExistentes = 0;
+        public static int _ingresosDifBovedasExistentes = 0;
+        public static int _ingresosDifBovedasGuardados = 0;
+        
         public ContratosController(ConnContext connContext, 
             ConnContextCTACTE connCtaCte, 
             ConnContextSEPULTA connSepulta, 
@@ -147,8 +150,11 @@ namespace webApiIFRS.Controllers
             DataTable dtIngresosDiferidos = new DataTable();
             DataTable dtInteresPorDevParaValidar = new DataTable();
             DataTable dtIngresosDiferidosParaValidar = new DataTable();
+            DataTable dtIngresosDiferidosBovedasParaValidar = new DataTable();
             DataTable dtInteresPorDevInactivos = new DataTable();
             DataTable dtDerechosServicios = new DataTable();
+            DataTable dtFechaTerminoProducto = new DataTable();
+            DataTable dtIngresosDiferidosBovedas = new DataTable(); 
 
             DateTime fechaVto = new DateTime();
             DateTime fechaVtoOriginal = new DateTime();
@@ -179,7 +185,7 @@ namespace webApiIFRS.Controllers
                 .CopyToDataTable();
 
             dtDerechosServicios = await _connContext.ObtenerDerechosServiciosSinIva(2025); 
-
+            
             var derechosServiciosPorContrato = dtDerechosServicios
                 .AsEnumerable()
                 .GroupBy(r => r.Field<int>("numero_comprobante"))
@@ -206,6 +212,23 @@ namespace webApiIFRS.Controllers
                     row["con_derechos_servicios_con_iva"] = 0m; 
                 }
             }
+
+            if(!dtContratos.Columns.Contains("con_fecha_termino_producto"))
+            {
+                dtContratos.Columns.Add("con_fecha_termino_producto", typeof(DateTime)); 
+            }
+            /*************************************************************************************************************************/
+            /*LISTA FECHA DE TERMINO DEL PRODUCTO*/
+            dtFechaTerminoProducto = await _connContext.obtenerFechaTerminoProducto();
+            var fechasTerminoProductoPorContrato = dtFechaTerminoProducto.AsEnumerable()
+                .Where(r=> r["numero_contrato"] != DBNull.Value && r["fecha_termino_produccion"] != DBNull.Value)
+                .GroupBy(r => r["numero_contrato"].ToString())
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.First().Field<DateTime>("fecha_termino_produccion")
+                );
+
+            /*************************************************************************************************************************/
 
             /*RECORRO DTCONTRATO PARA REALIZAR LOS CALCULOS*/
             foreach (DataRow row in dtContratos.Rows)
@@ -241,6 +264,16 @@ namespace webApiIFRS.Controllers
                 {
                     // precio base neto de derechos (si precioBase original incluye derechos)
                     precioBaseMenosDerechos = precioBase - totalDerechos;
+                }
+
+                /*AGREGO COLUMNA FECHA DE TERMINO DE PRODUCTO*/
+                if(!string.IsNullOrEmpty(numContrato) && fechasTerminoProductoPorContrato.TryGetValue(numContrato, out DateTime fechaTermino))
+                {
+                    row["con_fecha_termino_producto"] = fechaTermino;
+                }
+                else
+                {
+                    row["con_fecha_termino_producto"] = DBNull.Value;
                 }
 
                 // setea resultados en la misma fila
@@ -283,6 +316,16 @@ namespace webApiIFRS.Controllers
                 {
                     totalVenta += totalDerechos;
                     pie = totalVenta;
+                }
+
+                /*AGREGO COLUMNA FECHA DE TERMINO DE PRODUCTO*/
+                if (!string.IsNullOrEmpty(busqueda[0].ToString()) && fechasTerminoProductoPorContrato.TryGetValue(busqueda[0].ToString(), out DateTime fechaTermino))
+                {
+                    filaNew["con_fecha_termino_producto"] = fechaTermino;
+                }
+                else
+                {
+                    filaNew["con_fecha_termino_producto"] = DBNull.Value;
                 }
 
                 decimal precioBaseMenosDerSerConIva = precioBase - totalDerechos; 
@@ -351,7 +394,8 @@ namespace webApiIFRS.Controllers
                                     con_estado_contrato = GetStringValue(row, "con_estado_contrato"),
                                     con_num_repactaciones = GetIntValue(row, "con_num_repactaciones"),
                                     con_anos_arriendo = GetIntValue(row, "con_anos_arriendo"),
-                                    con_derechos_servicios_con_iva = GetDecimalValue(row, "con_derechos_servicios_con_iva")
+                                    con_derechos_servicios_con_iva = GetDecimalValue(row, "con_derechos_servicios_con_iva"), 
+                                    con_fecha_termino_producto = GetDateValue(row, "con_fecha_termino_producto")
                                 };
 
                                 if (!existeContratoIngresado)
@@ -380,8 +424,6 @@ namespace webApiIFRS.Controllers
                     await logWriterContratos.WriteLineAsync($"Error al ingresar los contratos a la base de datos - Excepcion: {ex.Message} - {DateTime.Now}");
                 }
             }
-
-            /*************************************************************************************************************************/            
 
             /*VERIFICAR EL ESTADO DE LAS CUOTAS*/
             dtPagosRealizados = await _connContext.ObtenerPagosRealizados(2025);
@@ -478,6 +520,18 @@ namespace webApiIFRS.Controllers
                         dtIngresosDiferidos.Columns.Add("ing_fecha_devengo", typeof(DateTime)); 
                         dtIngresosDiferidos.Columns.Add("ing_fecha_contab", typeof(DateTime));
                         dtIngresosDiferidos.Columns.Add("ing_estado_contab", typeof(int));
+                    }
+
+                    if(dtIngresosDiferidosBovedas.Columns.Count == 0)
+                    {
+                        dtIngresosDiferidosBovedas.Columns.Add("ID", typeof(int));
+                        dtIngresosDiferidosBovedas.Columns.Add("ing_bov_num_con", typeof(string));
+                        dtIngresosDiferidosBovedas.Columns.Add("ing_bov_precio_base", typeof(decimal));                        
+                        dtIngresosDiferidosBovedas.Columns.Add("ing_bov_nro_cuota", typeof(int));
+                        dtIngresosDiferidosBovedas.Columns.Add("ing_bov_interes_diferido", typeof(decimal));
+                        dtIngresosDiferidosBovedas.Columns.Add("ing_bov_fecha_devengo", typeof(DateTime));
+                        dtIngresosDiferidosBovedas.Columns.Add("ing_bov_fecha_contab", typeof(DateTime));
+                        dtIngresosDiferidosBovedas.Columns.Add("ing_bov_estado_contab", typeof(int));
                     }
 
                     correlativo_int_dev++;
@@ -603,10 +657,15 @@ namespace webApiIFRS.Controllers
                     }
 
                     /*INGRESOS DIFERIDOS DE CONTRATOS ARRIENDO NICHOS*/
-                    int tipoIngreso = int.Parse(dtContratos.Rows[i]["con_id_tipo_ingreso"].ToString()); 
+                    int tipoIngreso = int.Parse(dtContratos.Rows[i]["con_id_tipo_ingreso"].ToString());
+                    string numeroContrato = dtContratos.Rows[i]["con_num_con"].ToString();
+                    /*FECHA DE TERMINO DE PRODUCTO*/
+                    DateTime? fechaTerminoProducto = dtContratos.Rows[i]["con_fecha_termino_producto"] == DBNull.Value
+                                                        ? (DateTime?)null
+                                                        : Convert.ToDateTime(dtContratos.Rows[i]["con_fecha_termino_producto"]);
+
                     if (tipoIngreso == 1)
                     {
-                        string numeroContrato = dtContratos.Rows[i]["con_num_con"].ToString();
                         string logPath_paso2 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2_cargaDTMesesArriendo.txt");
                         using (StreamWriter logWriter_paso2 = new StreamWriter(logPath_paso2, append: true))
                         {
@@ -648,8 +707,48 @@ namespace webApiIFRS.Controllers
                                 {
                                     if (dtIngresosDiferidos.Rows.Count == 0)
                                     {
-                                        logWriter.WriteLineAsync($"DataTable dtIngresosDiferidos no tiene registros - {DateTime.Now}");
+                                        logWriter_paso2.WriteLineAsync($"DataTable dtIngresosDiferidos no tiene registros - {DateTime.Now}");
                                     }
+                                }
+                            }
+                        }
+                    }
+                    else if (tipoIngreso == 2)
+                    {
+                        /*BOVEDAS SE GENERA INGRESO DIFERIDO PARA LAS QUE NO TIENEN FECHA DE TERMINO*/
+                        string logPath_paso2_2 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2.2_cargaIngresosDiferidosBovedas.txt");
+                        using (StreamWriter logWriter_paso2_2 = new StreamWriter(logPath_paso2_2, append: true))
+                        {
+                            DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(1); 
+                            DateTime fechaDevengo = fechaIngreso_;
+
+                            try
+                            {
+                                if (fechaTerminoProducto == null)
+                                {   /*VENTA EN VERDE*/
+                                    if (precioBase > 0)
+                                    {
+                                        DataRow filaNuevaIng = dtIngresosDiferidosBovedas.NewRow();
+                                        filaNuevaIng["ing_bov_num_con"] = numeroContrato;
+                                        filaNuevaIng["ing_bov_nro_cuota"] = 1;
+                                        filaNuevaIng["ing_bov_precio_base"] = precioBase;
+                                        filaNuevaIng["ing_bov_interes_diferido"] = precioBase;
+                                        filaNuevaIng["ing_bov_fecha_devengo"] = fechaDevengo;
+                                        filaNuevaIng["ing_bov_fecha_contab"] = DBNull.Value;
+                                        filaNuevaIng["ing_bov_estado_contab"] = 0;
+                                        dtIngresosDiferidosBovedas.Rows.Add(filaNuevaIng);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logWriter_paso2_2.WriteLineAsync($"Falló ingreso diferidos bovedas, contrato: {numeroContrato}, Excepcion capturada: {ex.Message} - {DateTime.Now}");
+                            }
+                            finally
+                            {
+                                if (dtIngresosDiferidosBovedas.Rows.Count == 0)
+                                {
+                                    logWriter_paso2_2.WriteLineAsync($"DataTable dtIngresosDiferidosBovedas no tiene registros - {DateTime.Now}");
                                 }
                             }
                         }
@@ -1007,6 +1106,12 @@ namespace webApiIFRS.Controllers
                     cont = await Paso7_GuardaEnBDIngresosDiferidos(_connContext, dtIngresosDiferidos, dtIngresosDiferidosParaValidar); 
                 }
 
+                int contIngBov = 0; 
+                if(dtIngresosDiferidosBovedas.Rows.Count > 0)
+                {
+                    contIngBov = await Paso9_GuardaEnBDIngresosDiferidosBovedas(_connContext, dtIngresosDiferidosBovedas, dtIngresosDiferidosBovedasParaValidar);
+                }
+
                 return Ok(new
                 {
                     registrosContratosEsperados = dtContratos.Rows.Count,
@@ -1019,7 +1124,11 @@ namespace webApiIFRS.Controllers
 
                     registrosIngresosEsperados = dtIngresosDiferidos.Rows.Count,
                     registrosIngresosInsertados = _ingresosGuardados,
-                    registrosIngresosYaExisten = _ingresosDifNichosExistentes
+                    registrosIngresosYaExisten = _ingresosDifNichosExistentes,
+
+                    registrosIngresosBovedasEsperados = dtIngresosDiferidosBovedas.Rows.Count,
+                    registrosIngresosBovedasInsertados = _ingresosDifBovedasGuardados,
+                    registrosIngresosBovedasYaExisten = _ingresosDifBovedasExistentes
                 });    
             }
         }
@@ -1201,6 +1310,86 @@ namespace webApiIFRS.Controllers
                 return countIngresosDif; 
             }
         }
+
+        public async static Task<Int32> Paso9_GuardaEnBDIngresosDiferidosBovedas(ConnContext _connContext, DataTable dtIngresosDiferidosBovedas, DataTable dtIngresosDiferidosBovedasParaValidar)
+        {
+            int countIngresosDifBov = 0;
+            string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_9_GuardaEnBDIngresosDiferidosBovedas.txt");
+
+            using (StreamWriter logWriterPaso9 = new StreamWriter(logPath, append: true))
+            {
+                int registrosInsertados = 0;
+                int registrosDuplicados = 0;
+
+                var clavesExistentes = await _connContext.IngresosDiferidosBovedas
+                                        .Select(x => new { x.ing_bov_num_con, x.ing_bov_nro_cuota })
+                                        .ToListAsync();
+
+                var hashClaves = new HashSet<(string, int)>(
+                                    clavesExistentes.Select(c => (c.ing_bov_num_con.Trim(), c.ing_bov_nro_cuota))
+                                );
+
+                foreach (DataRow row in dtIngresosDiferidosBovedas.Rows)
+                {
+                    string numCon = GetStringValue(row, "ing_bov_num_con").Trim();
+                    int nroCuota = GetIntValue(row, "ing_bov_nro_cuota");
+
+                    bool yaExiste = hashClaves.Contains((numCon, nroCuota));
+
+                    if (!yaExiste)
+                    {
+                        try
+                        {
+                            var ingresosDifBov = new IngresosDiferidosBovedas
+                            {
+                                ing_bov_num_con = GetStringValue(row, "ing_bov_num_con"),
+                                ing_bov_precio_base = GetDecimalValue(row, "ing_bov_precio_base"),                    
+                                ing_bov_nro_cuota = GetIntValue(row, "ing_bov_nro_cuota"),
+                                ing_bov_interes_diferido = GetDecimalValue(row, "ing_bov_interes_diferido"),
+                                ing_bov_fecha_devengo = GetDateValue(row, "ing_bov_fecha_devengo"),
+                                ing_bov_fecha_contab = GetDateValue(row, "ing_bov_fecha_contab"),
+                                ing_bov_estado_contab = GetIntValue(row, "ing_bov_estado_contab"),
+                                ing_bov_fecha = DateTime.Now
+                            };
+                            await _connContext.IngresosDiferidosBovedas.AddAsync(ingresosDifBov);
+                            registrosInsertados++;
+                            hashClaves.Add((numCon, nroCuota));
+                        }
+                        catch (Exception ex)
+                        {
+                            await logWriterPaso9.WriteLineAsync($"Error al preparar datos de ingresos diferidos bovedas (numContrato: {GetStringValue(row, "ing_bov_num_con")}, numCuota: {GetIntValue(row, "ing_bov_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
+                        }
+                    }
+                    else
+                    {
+                        registrosDuplicados++;
+                        _ingresosDifBovedasExistentes = registrosDuplicados;
+                        await logWriterPaso9.WriteLineAsync(
+                            $"Registro duplicado omitido en Ingresos Diferidos Bovedas (numContrato: {numCon}, numCuota: {nroCuota}) - {DateTime.Now}"
+                        );
+                    }
+                }
+
+                try
+                {
+                    //guarda en la BD
+                    await _connContext.SaveChangesAsync();
+                    _ingresosDifBovedasGuardados = registrosInsertados;
+
+                    await logWriterPaso9.WriteLineAsync(
+                        $"Ingresos diferidos bovedas insertados: {registrosInsertados}, duplicados omitidos: {registrosDuplicados} - {DateTime.Now}"
+                    );
+                }
+                catch (Exception ex)
+                {
+                    await logWriterPaso9.WriteLineAsync($"Paso 9, Excepcion: {ex.Message} - {DateTime.Now}");
+                }
+
+                countIngresosDifBov = _ingresosGuardados;
+                return countIngresosDifBov;
+            }
+        }
+
         public static DateTime GetUltimoDiaDelMes(DateTime fecha)
         {
             return new DateTime(fecha.Year, fecha.Month, DateTime.DaysInMonth(fecha.Year, fecha.Month));
