@@ -27,7 +27,9 @@ namespace webApiIFRS.Models
         public DbSet<FechaPrimerVtoBOV> fechaPrimerVtoBOV { get; set; } = null;
         public DbSet<DerechosServicios> DerechosServicios { get; set; } = null;
         public DbSet<TerminoProducto> TerminoProducto { get; set; } = null;
-        public DbSet<IngresosDiferidosBovedas> IngresosDiferidosBovedas { get; set; } = null; 
+        public DbSet<IngresosDiferidosBovedas> IngresosDiferidosBovedas { get; set; } = null;
+        public DbSet<IngresosDiferidosSFT> IngresosDiferidosSFT { get; set; } = null;
+        public DbSet<IngresosDiferidosBovedasPremium> IngresosDiferidosBovedasPremium { get; set; } = null;
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

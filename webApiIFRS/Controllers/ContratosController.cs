@@ -31,7 +31,11 @@ namespace webApiIFRS.Controllers
         public static int _ingresosDifNichosExistentes = 0;
         public static int _ingresosDifBovedasExistentes = 0;
         public static int _ingresosDifBovedasGuardados = 0;
-        
+        public static int _ingresosDifSFTExistentes = 0;
+        public static int _ingresosDifSFTGuardados = 0;
+        public static int _ingresosDifBovedasPremiumExistentes = 0;
+        public static int _ingresosDifBovedasPremiumGuardados = 0;
+
         public ContratosController(ConnContext connContext, 
             ConnContextCTACTE connCtaCte, 
             ConnContextSEPULTA connSepulta, 
@@ -155,6 +159,10 @@ namespace webApiIFRS.Controllers
             DataTable dtDerechosServicios = new DataTable();
             DataTable dtFechaTerminoProducto = new DataTable();
             DataTable dtIngresosDiferidosBovedas = new DataTable(); 
+            DataTable dtIngresosDiferidosSFT = new DataTable();
+            DataTable dtIngresosDiferidosSFTParaValidar = new DataTable();
+            DataTable dtIngresosDiferidosBovedasPremium = new DataTable();
+            DataTable dtIngresosDiferidosBovedasPremiumParaValidar = new DataTable();
 
             DateTime fechaVto = new DateTime();
             DateTime fechaVtoOriginal = new DateTime();
@@ -534,6 +542,30 @@ namespace webApiIFRS.Controllers
                         dtIngresosDiferidosBovedas.Columns.Add("ing_bov_estado_contab", typeof(int));
                     }
 
+                    if (dtIngresosDiferidosSFT.Columns.Count == 0)
+                    {
+                        dtIngresosDiferidosSFT.Columns.Add("ID", typeof(int));
+                        dtIngresosDiferidosSFT.Columns.Add("ing_sft_num_con", typeof(string));
+                        dtIngresosDiferidosSFT.Columns.Add("ing_sft_precio_base", typeof(decimal));
+                        dtIngresosDiferidosSFT.Columns.Add("ing_sft_nro_cuota", typeof(int));
+                        dtIngresosDiferidosSFT.Columns.Add("ing_sft_interes_diferido", typeof(decimal));
+                        dtIngresosDiferidosSFT.Columns.Add("ing_sft_fecha_devengo", typeof(DateTime));
+                        dtIngresosDiferidosSFT.Columns.Add("ing_sft_fecha_contab", typeof(DateTime));
+                        dtIngresosDiferidosSFT.Columns.Add("ing_sft_estado_contab", typeof(int));
+                    }
+
+                    if (dtIngresosDiferidosBovedasPremium.Columns.Count == 0)
+                    {
+                        dtIngresosDiferidosBovedasPremium.Columns.Add("ID", typeof(int));
+                        dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_num_con", typeof(string));
+                        dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_precio_base", typeof(decimal));
+                        dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_nro_cuota", typeof(int));
+                        dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_interes_diferido", typeof(decimal));
+                        dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_fecha_devengo", typeof(DateTime));
+                        dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_fecha_contab", typeof(DateTime));
+                        dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_estado_contab", typeof(int));
+                    }
+                    
                     correlativo_int_dev++;
 
                     /*TOMO SOLO LOS CONTRATOS CON CUOTAS MAYOR A CERO PARA GUARDAR LOS INTERESES POR DEVENGAR*/
@@ -753,6 +785,87 @@ namespace webApiIFRS.Controllers
                             }
                         }
                     }
+                    else if (tipoIngreso == 6)
+                    {
+                        /*SFT SE GENERA INGRESO DIFERIDO PARA LAS QUE NO TIENEN FECHA DE TERMINO*/
+                        string logPath_paso2_3 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2.3_cargaIngresosDiferidosSFT.txt");
+                        using (StreamWriter logWriter_paso2_3 = new StreamWriter(logPath_paso2_3, append: true))
+                        {
+                            DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(1);
+                            DateTime fechaDevengo = fechaIngreso_;
+
+                            try
+                            {
+                                if (fechaTerminoProducto == null)
+                                {   /*VENTA EN VERDE*/
+                                    if (precioBase > 0)
+                                    {
+                                        DataRow filaNuevaIng = dtIngresosDiferidosSFT.NewRow();
+                                        filaNuevaIng["ing_sft_num_con"] = numeroContrato;
+                                        filaNuevaIng["ing_sft_nro_cuota"] = 1;
+                                        filaNuevaIng["ing_sft_precio_base"] = precioBase;
+                                        filaNuevaIng["ing_sft_interes_diferido"] = precioBase;
+                                        filaNuevaIng["ing_sft_fecha_devengo"] = fechaDevengo;
+                                        filaNuevaIng["ing_sft_fecha_contab"] = DBNull.Value;
+                                        filaNuevaIng["ing_sft_estado_contab"] = 0;
+                                        dtIngresosDiferidosSFT.Rows.Add(filaNuevaIng);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logWriter_paso2_3.WriteLineAsync($"Falló ingreso diferidos sft, contrato: {numeroContrato}, Excepcion capturada: {ex.Message} - {DateTime.Now}");
+                            }
+                            finally
+                            {
+                                if (dtIngresosDiferidosBovedas.Rows.Count == 0)
+                                {
+                                    logWriter_paso2_3.WriteLineAsync($"DataTable dtIngresosDiferidosSFT no tiene registros - {DateTime.Now}");
+                                }
+                            }
+                        }
+                    }
+                    else if (tipoIngreso == 3)
+                    {
+                        /*BOVEDAS PREMIUM SE GENERA INGRESO DIFERIDO PARA LAS QUE NO TIENEN FECHA DE TERMINO*/
+                        string logPath_paso2_4 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2.4_cargaIngresosDiferidosBovedasPremium.txt");
+                        using (StreamWriter logWriter_paso2_4 = new StreamWriter(logPath_paso2_4, append: true))
+                        {
+                            DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(1);
+                            DateTime fechaDevengo = fechaIngreso_;
+
+                            try
+                            {
+                                if (fechaTerminoProducto == null)
+                                {   /*VENTA EN VERDE*/
+                                    if (precioBase > 0)
+                                    {
+                                        DataRow filaNuevaIng = dtIngresosDiferidosBovedasPremium.NewRow();
+                                        filaNuevaIng["ing_bovp_num_con"] = numeroContrato;
+                                        filaNuevaIng["ing_bovp_nro_cuota"] = 1;
+                                        filaNuevaIng["ing_bovp_precio_base"] = precioBase;
+                                        filaNuevaIng["ing_bovp_interes_diferido"] = precioBase;
+                                        filaNuevaIng["ing_bovp_fecha_devengo"] = fechaDevengo;
+                                        filaNuevaIng["ing_bovp_fecha_contab"] = DBNull.Value;
+                                        filaNuevaIng["ing_bovp_estado_contab"] = 0;
+                                        dtIngresosDiferidosBovedasPremium.Rows.Add(filaNuevaIng);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logWriter_paso2_4.WriteLineAsync($"Falló ingreso diferidos bovedas premium, contrato: {numeroContrato}, Excepcion capturada: {ex.Message} - {DateTime.Now}");
+                            }
+                            finally
+                            {
+                                if (dtIngresosDiferidosBovedas.Rows.Count == 0)
+                                {
+                                    logWriter_paso2_4.WriteLineAsync($"DataTable dtIngresosDiferidosBovedasPremium no tiene registros - {DateTime.Now}");
+                                }
+                            }
+                        }
+                    }
+                    
                 }
 
                 correlativo_int_dev++;
@@ -1112,6 +1225,18 @@ namespace webApiIFRS.Controllers
                     contIngBov = await Paso9_GuardaEnBDIngresosDiferidosBovedas(_connContext, dtIngresosDiferidosBovedas, dtIngresosDiferidosBovedasParaValidar);
                 }
 
+                int contIngSFT = 0;
+                if (dtIngresosDiferidosSFT.Rows.Count > 0)
+                {
+                    contIngSFT = await Paso10_GuardaEnBDIngresosDiferidosSFT(_connContext, dtIngresosDiferidosSFT, dtIngresosDiferidosSFTParaValidar);
+                }
+
+                int contIngBOVP = 0;
+                if (dtIngresosDiferidosBovedasPremium.Rows.Count > 0)
+                {
+                    contIngBOVP = await Paso11_GuardaEnBDIngresosDiferidosBovedasPremium(_connContext, dtIngresosDiferidosBovedasPremium, dtIngresosDiferidosBovedasPremiumParaValidar);
+                }
+
                 return Ok(new
                 {
                     registrosContratosEsperados = dtContratos.Rows.Count,
@@ -1128,7 +1253,15 @@ namespace webApiIFRS.Controllers
 
                     registrosIngresosBovedasEsperados = dtIngresosDiferidosBovedas.Rows.Count,
                     registrosIngresosBovedasInsertados = _ingresosDifBovedasGuardados,
-                    registrosIngresosBovedasYaExisten = _ingresosDifBovedasExistentes
+                    registrosIngresosBovedasYaExisten = _ingresosDifBovedasExistentes,
+
+                    registrosIngresosSFTEsperados = dtIngresosDiferidosSFT.Rows.Count,
+                    registrosIngresosSFTInsertados = _ingresosDifSFTGuardados,
+                    registrosIngresosSFTYaExisten = _ingresosDifSFTExistentes, 
+
+                    registrosIngresosBovedasPremiumEsperados = dtIngresosDiferidosBovedasPremium.Rows.Count,
+                    registrosIngresosBovedasPremiumInsertados = _ingresosDifBovedasPremiumGuardados,
+                    registrosIngresosBovedasPremiumYaExisten = _ingresosDifBovedasPremiumExistentes
                 });    
             }
         }
@@ -1390,6 +1523,163 @@ namespace webApiIFRS.Controllers
             }
         }
 
+        public async static Task<Int32> Paso10_GuardaEnBDIngresosDiferidosSFT(ConnContext _connContext, DataTable dtIngresosDiferidosSFT, DataTable dtIngresosDiferidosSFTParaValidar)
+        {
+            int countIngresosDifSFT = 0;
+            string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_10_GuardaEnBDIngresosDiferidosSFT.txt");
+
+            using (StreamWriter logWriterPaso10 = new StreamWriter(logPath, append: true))
+            {
+                int registrosInsertados = 0;
+                int registrosDuplicados = 0;
+
+                var clavesExistentes = await _connContext.IngresosDiferidosSFT
+                                        .Select(x => new { x.ing_sft_num_con, x.ing_sft_nro_cuota })
+                                        .ToListAsync();
+
+                var hashClaves = new HashSet<(string, int)>(
+                                    clavesExistentes.Select(c => (c.ing_sft_num_con.Trim(), c.ing_sft_nro_cuota))
+                                );
+
+                foreach (DataRow row in dtIngresosDiferidosSFT.Rows)
+                {
+                    string numCon = GetStringValue(row, "ing_sft_num_con").Trim();
+                    int nroCuota = GetIntValue(row, "ing_sft_nro_cuota");
+
+                    bool yaExiste = hashClaves.Contains((numCon, nroCuota));
+
+                    if (!yaExiste)
+                    {
+                        try
+                        {
+                            var ingresosDifSFT = new IngresosDiferidosSFT
+                            {
+                                ing_sft_num_con = GetStringValue(row, "ing_sft_num_con"),
+                                ing_sft_precio_base = GetDecimalValue(row, "ing_sft_precio_base"),
+                                ing_sft_nro_cuota = GetIntValue(row, "ing_sft_nro_cuota"),
+                                ing_sft_interes_diferido = GetDecimalValue(row, "ing_sft_interes_diferido"),
+                                ing_sft_fecha_devengo = GetDateValue(row, "ing_sft_fecha_devengo"),
+                                ing_sft_fecha_contab = GetDateValue(row, "ing_sft_fecha_contab"),
+                                ing_sft_estado_contab = GetIntValue(row, "ing_sft_estado_contab"),
+                                ing_sft_fecha = DateTime.Now
+                            };
+                            await _connContext.IngresosDiferidosSFT.AddAsync(ingresosDifSFT);
+                            registrosInsertados++;
+                            hashClaves.Add((numCon, nroCuota));
+                        }
+                        catch (Exception ex)
+                        {
+                            await logWriterPaso10.WriteLineAsync($"Error al preparar datos de ingresos diferidos SFT (numContrato: {GetStringValue(row, "ing_sft_num_con")}, numCuota: {GetIntValue(row, "ing_sft_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
+                        }
+                    }
+                    else
+                    {
+                        registrosDuplicados++;
+                        _ingresosDifSFTExistentes = registrosDuplicados;
+                        await logWriterPaso10.WriteLineAsync(
+                            $"Registro duplicado omitido en Ingresos Diferidos SFT (numContrato: {numCon}, numCuota: {nroCuota}) - {DateTime.Now}"
+                        );
+                    }
+                }
+
+                try
+                {
+                    //guarda en la BD
+                    await _connContext.SaveChangesAsync();
+                    _ingresosDifSFTGuardados = registrosInsertados;
+
+                    await logWriterPaso10.WriteLineAsync(
+                        $"Ingresos diferidos sft insertados: {registrosInsertados}, duplicados omitidos: {registrosDuplicados} - {DateTime.Now}"
+                    );
+                }
+                catch (Exception ex)
+                {
+                    await logWriterPaso10.WriteLineAsync($"Paso 10, Excepcion: {ex.Message} - {DateTime.Now}");
+                }
+
+                countIngresosDifSFT = _ingresosGuardados;
+                return countIngresosDifSFT;
+            }
+        }
+        public async static Task<Int32> Paso11_GuardaEnBDIngresosDiferidosBovedasPremium(ConnContext _connContext, DataTable dtIngresosDiferidosBovedasPremium, DataTable dtIngresosDiferidosBovedasPremiumParaValidar)
+        {
+            int countIngresosDifBOVP = 0;
+            string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_11_GuardaEnBDIngresosDiferidosBovedasPremium.txt");
+
+            using (StreamWriter logWriterPaso11 = new StreamWriter(logPath, append: true))
+            {
+                int registrosInsertados = 0;
+                int registrosDuplicados = 0;
+
+                var clavesExistentes = await _connContext.IngresosDiferidosBovedasPremium
+                                        .Select(x => new { x.ing_bovp_num_con, x.ing_bovp_nro_cuota })
+                                        .ToListAsync();
+
+                var hashClaves = new HashSet<(string, int)>(
+                                    clavesExistentes.Select(c => (c.ing_bovp_num_con.Trim(), c.ing_bovp_nro_cuota))
+                                );
+
+                foreach (DataRow row in dtIngresosDiferidosBovedasPremium.Rows)
+                {
+                    string numCon = GetStringValue(row, "ing_bovp_num_con").Trim();
+                    int nroCuota = GetIntValue(row, "ing_bovp_nro_cuota");
+
+                    bool yaExiste = hashClaves.Contains((numCon, nroCuota));
+
+                    if (!yaExiste)
+                    {
+                        try
+                        {
+                            var ingresosDifBovedasPremium = new IngresosDiferidosBovedasPremium
+                            {
+                                ing_bovp_num_con = GetStringValue(row, "ing_bovp_num_con"),
+                                ing_bovp_precio_base = GetDecimalValue(row, "ing_bovp_precio_base"),
+                                ing_bovp_nro_cuota = GetIntValue(row, "ing_bovp_nro_cuota"),
+                                ing_bovp_interes_diferido = GetDecimalValue(row, "ing_bovp_interes_diferido"),
+                                ing_bovp_fecha_devengo = GetDateValue(row, "ing_bovp_fecha_devengo"),
+                                ing_bovp_fecha_contab = GetDateValue(row, "ing_bovp_fecha_contab"),
+                                ing_bovp_estado_contab = GetIntValue(row, "ing_bovp_estado_contab"),
+                                ing_bovp_fecha = DateTime.Now
+                            };
+                            await _connContext.IngresosDiferidosBovedasPremium.AddAsync(ingresosDifBovedasPremium);
+                            registrosInsertados++;
+                            hashClaves.Add((numCon, nroCuota));
+                        }
+                        catch (Exception ex)
+                        {
+                            await logWriterPaso11.WriteLineAsync($"Error al preparar datos de ingresos diferidos bovedas premium (numContrato: {GetStringValue(row, "ing_bovp_num_con")}, numCuota: {GetIntValue(row, "ing_bovp_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
+                        }
+                    }
+                    else
+                    {
+                        registrosDuplicados++;
+                        _ingresosDifBovedasPremiumExistentes = registrosDuplicados;
+                        await logWriterPaso11.WriteLineAsync(
+                            $"Registro duplicado omitido en Ingresos Diferidos bovedas premium (numContrato: {numCon}, numCuota: {nroCuota}) - {DateTime.Now}"
+                        );
+                    }
+                }
+
+                try
+                {
+                    //guarda en la BD
+                    await _connContext.SaveChangesAsync();
+                    _ingresosDifBovedasPremiumGuardados = registrosInsertados;
+
+                    await logWriterPaso11.WriteLineAsync(
+                        $"Ingresos diferidos bovedas premium insertados: {registrosInsertados}, duplicados omitidos: {registrosDuplicados} - {DateTime.Now}"
+                    );
+                }
+                catch (Exception ex)
+                {
+                    await logWriterPaso11.WriteLineAsync($"Paso 10, Excepcion: {ex.Message} - {DateTime.Now}");
+                }
+
+                countIngresosDifBOVP = _ingresosGuardados;
+                return countIngresosDifBOVP;
+            }
+        }
+        
         public static DateTime GetUltimoDiaDelMes(DateTime fecha)
         {
             return new DateTime(fecha.Year, fecha.Month, DateTime.DaysInMonth(fecha.Year, fecha.Month));
