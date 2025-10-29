@@ -367,8 +367,17 @@ namespace webApiIFRS.Controllers
                 dtContratos.Rows.Add(filaNew);                
             }
 
-            /*YA CON EL DATATABLE LIMPIO SIN DUPLICADOS Y CON EL MONTO TOTAL VENTA, PROCEDO A INSERTARLOS A LA BD*/            
-            string logPathContratos = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_CargaContratos.txt");
+            /*YA CON EL DATATABLE LIMPIO SIN DUPLICADOS Y CON EL MONTO TOTAL VENTA, PROCEDO A INSERTARLOS A LA BD*/
+            string basePath = AppDomain.CurrentDomain.BaseDirectory;
+            string fechaCarpeta = DateTime.Now.ToString("yyyy-MM-dd");
+            string carpetaLogs = Path.Combine(basePath, fechaCarpeta);
+
+            if (!Directory.Exists(carpetaLogs))
+            {
+                Directory.CreateDirectory(carpetaLogs);
+            }
+
+            string logPathContratos = Path.Combine(carpetaLogs, $"1_CargaContratos_{DateTime.Now.ToShortDateString()}.txt");
             int contratosGuardados = 0;
             int contContratosExistentes = 0;
 
@@ -447,9 +456,10 @@ namespace webApiIFRS.Controllers
             dtInteresPorDevParaValidar = await _connContext.ObtenerInteresPorDev_ListadoContratosYsusCuotas(2025);
             dtIngresosDiferidosParaValidar = await _connContext.ObtenerIngresosDiferidosNichos_ListaCuotas(2025);
 
-            int correlativo_int_dev = 0; 
+            int correlativo_int_dev = 0;
 
-            string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_0_ProcesaContratos.txt");
+            //string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_0_ProcesaContratos.txt");
+            string logPath = Path.Combine(carpetaLogs, $"2_ProcesaContratos_{DateTime.Now.ToShortDateString()}.txt");
 
             using (StreamWriter logWriter = new StreamWriter(logPath, append: true))
             {
@@ -593,7 +603,8 @@ namespace webApiIFRS.Controllers
                         .Where(row => row.Field<int>("con_cuotas_pactadas") > 0)
                         .CopyToDataTable();
 
-                    string logPath_paso1 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_1_cargaDTInteresesPorDevengar.txt");
+                    string logPath_paso1 = Path.Combine(carpetaLogs, $"3_cargaDTInteresesPorDevengar_{DateTime.Now.ToShortDateString()}.txt");
+                    //string logPath_paso1 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_1_cargaDTInteresesPorDevengar.txt");
 
                     using (StreamWriter logWriter_paso1 = new StreamWriter(logPath_paso1, append: true))
                     {                        
@@ -714,10 +725,11 @@ namespace webApiIFRS.Controllers
                     DateTime? fechaTerminoProducto = dtContratos.Rows[i]["con_fecha_termino_producto"] == DBNull.Value
                                                         ? (DateTime?)null
                                                         : Convert.ToDateTime(dtContratos.Rows[i]["con_fecha_termino_producto"]);
-
+                    /*INGRESO NICHOS*/
                     if (tipoIngreso == 1)
                     {
-                        string logPath_paso2 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2_cargaDTMesesArriendo.txt");
+                        string logPath_paso2 = Path.Combine(carpetaLogs, $"4.0_cargaDTMesesArriendo_{DateTime.Now.ToShortDateString()}.txt");
+                        //string logPath_paso2 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2_cargaDTMesesArriendo.txt");
                         using (StreamWriter logWriter_paso2 = new StreamWriter(logPath_paso2, append: true))
                         {
                             for (int i3 = 0; i3 < mesesArriendo; i3++)
@@ -764,10 +776,12 @@ namespace webApiIFRS.Controllers
                             }
                         }
                     }
+                    /*VENTA BOVEDAS*/
                     else if (tipoIngreso == 2)
                     {
                         /*BOVEDAS SE GENERA INGRESO DIFERIDO PARA LAS QUE NO TIENEN FECHA DE TERMINO*/
-                        string logPath_paso2_2 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2.2_cargaIngresosDiferidosBovedas.txt");
+                        string logPath_paso2_2 = Path.Combine(carpetaLogs, $"4.1_cargaIngresosDiferidosBovedas_{DateTime.Now.ToShortDateString()}.txt");
+                        //string logPath_paso2_2 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2.2_cargaIngresosDiferidosBovedas.txt");
                         using (StreamWriter logWriter_paso2_2 = new StreamWriter(logPath_paso2_2, append: true))
                         {
                             DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(1); 
@@ -804,10 +818,12 @@ namespace webApiIFRS.Controllers
                             }
                         }
                     }
+                    /*VENTA SEPULTURA EN TIERRA*/
                     else if (tipoIngreso == 6)
                     {
                         /*SFT SE GENERA INGRESO DIFERIDO PARA LAS QUE NO TIENEN FECHA DE TERMINO*/
-                        string logPath_paso2_3 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2.3_cargaIngresosDiferidosSFT.txt");
+                        string logPath_paso2_3 = Path.Combine(carpetaLogs, $"4.2_cargaIngresosDiferidosSFT_{DateTime.Now.ToShortDateString()}.txt");
+                        //string logPath_paso2_3 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2.3_cargaIngresosDiferidosSFT.txt");
                         using (StreamWriter logWriter_paso2_3 = new StreamWriter(logPath_paso2_3, append: true))
                         {
                             DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(1);
@@ -844,10 +860,12 @@ namespace webApiIFRS.Controllers
                             }
                         }
                     }
+                    /*VENTA BOVEDAS PREMIUM*/
                     else if (tipoIngreso == 3)
                     {
                         /*BOVEDAS PREMIUM SE GENERA INGRESO DIFERIDO PARA LAS QUE NO TIENEN FECHA DE TERMINO*/
-                        string logPath_paso2_4 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2.4_cargaIngresosDiferidosBovedasPremium.txt");
+                        string logPath_paso2_4 = Path.Combine(carpetaLogs, $"4.3_cargaIngresosDiferidosBovedasPremium_{DateTime.Now.ToShortDateString()}.txt");
+                        //string logPath_paso2_4 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2.4_cargaIngresosDiferidosBovedasPremium.txt");
                         using (StreamWriter logWriter_paso2_4 = new StreamWriter(logPath_paso2_4, append: true))
                         {
                             DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(1);
@@ -884,10 +902,12 @@ namespace webApiIFRS.Controllers
                             }
                         }
                     }
-                    else if(tipoIngreso == 4)
+                    /*VENTA NICHO UPGRADE*/
+                    else if (tipoIngreso == 4)
                     {
                         /*NICHO UPGRADE SE GENERA INGRESO DIFERIDO PARA LAS QUE NO TIENEN FECHA DE TERMINO*/
-                        string logPath_paso2_5 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2.4_cargaIngresosDiferidosBovedasPremium.txt");
+                        string logPath_paso2_5 = Path.Combine(carpetaLogs, $"4.4_cargaIngresosDiferidosBovedasPremium_{DateTime.Now.ToShortDateString()}.txt");
+                        //string logPath_paso2_5 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2.5_cargaIngresosDiferidosBovedasPremium.txt");
                         using (StreamWriter logWriter_paso2_5 = new StreamWriter(logPath_paso2_5, append: true))
                         {
                             DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(1);
@@ -925,11 +945,11 @@ namespace webApiIFRS.Controllers
                         }
                     }                    
                 }
-
                 
                 correlativo_int_dev++;
 
-                string logPathPaso3 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_3_cargaDTModReacResc.txt");
+                //string logPathPaso3 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_3_cargaDTModReacResc.txt");
+                string logPathPaso3 = Path.Combine(carpetaLogs, $"4.5_CargaDTModReacResc_{DateTime.Now.ToShortDateString()}.txt");
                 using (StreamWriter logWriterPaso3 = new StreamWriter(logPathPaso3, append: true))
                 {
                     for (int i = 0; i < dtContratos.Rows.Count; i++)
@@ -1076,7 +1096,8 @@ namespace webApiIFRS.Controllers
                 }
 
                 /****** Busca los datos a borrar *****/
-                string logPathPaso4 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_4_Elimina_e_Inactiva.txt");
+                //string logPathPaso4 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_4_Elimina_e_Inactiva.txt");
+                string logPathPaso4 = Path.Combine(carpetaLogs, $"4.6_Elimina_e_Inactiva_{DateTime.Now.ToShortDateString()}.txt");
                 using (StreamWriter logWriterPaso4 = new StreamWriter(logPathPaso4, append: true))
                 {
                     try
@@ -1175,7 +1196,8 @@ namespace webApiIFRS.Controllers
                 }
 
                 /****** Actualiza los capitales de las modificaciones ******/
-                string logPathPaso5 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_5_ActualizaLosCapitalesDeLasModificaciones.txt");
+                //string logPathPaso5 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_5_ActualizaLosCapitalesDeLasModificaciones.txt");
+                string logPathPaso5 = Path.Combine(carpetaLogs, $"5_ActualizaLosCapitalesDeLasModificaciones_{DateTime.Now.ToShortDateString()}.txt");
                 using (StreamWriter logWriterPaso5 = new StreamWriter(logPathPaso5, append: true))
                 {
                     try
@@ -1280,25 +1302,25 @@ namespace webApiIFRS.Controllers
                 int contIngBov = 0; 
                 if(dtIngresosDiferidosBovedas.Rows.Count > 0)
                 {
-                    contIngBov = await Paso9_GuardaEnBDIngresosDiferidosBovedas(_connContext, dtIngresosDiferidosBovedas, dtIngresosDiferidosBovedasParaValidar);
+                    contIngBov = await Paso8_GuardaEnBDIngresosDiferidosBovedas(_connContext, dtIngresosDiferidosBovedas, dtIngresosDiferidosBovedasParaValidar);
                 }
 
                 int contIngSFT = 0;
                 if (dtIngresosDiferidosSFT.Rows.Count > 0)
                 {
-                    contIngSFT = await Paso10_GuardaEnBDIngresosDiferidosSFT(_connContext, dtIngresosDiferidosSFT, dtIngresosDiferidosSFTParaValidar);
+                    contIngSFT = await Paso9_GuardaEnBDIngresosDiferidosSFT(_connContext, dtIngresosDiferidosSFT, dtIngresosDiferidosSFTParaValidar);
                 }
 
                 int contIngBOVP = 0;
                 if (dtIngresosDiferidosBovedasPremium.Rows.Count > 0)
                 {
-                    contIngBOVP = await Paso11_GuardaEnBDIngresosDiferidosBovedasPremium(_connContext, dtIngresosDiferidosBovedasPremium, dtIngresosDiferidosBovedasPremiumParaValidar);
+                    contIngBOVP = await Paso10_GuardaEnBDIngresosDiferidosBovedasPremium(_connContext, dtIngresosDiferidosBovedasPremium, dtIngresosDiferidosBovedasPremiumParaValidar);
                 }
 
                 int contIngNichoUpg = 0;
                 if (dtIngresosDiferidosNichosUpgrade.Rows.Count > 0)
                 {
-                    contIngNichoUpg = await Paso11_GuardaEnBDIngresosDiferidosBovedasPremium(_connContext, dtIngresosDiferidosNichosUpgrade, dtIngresosDiferidosNichosUpgradeParaValidar);
+                    contIngNichoUpg = await Paso11_GuardaEnBDIngresosDiferidosNichoUpgrade(_connContext, dtIngresosDiferidosNichosUpgrade, dtIngresosDiferidosNichosUpgradeParaValidar);
                 }
                 /****************************************************************************************/
 
@@ -1340,9 +1362,20 @@ namespace webApiIFRS.Controllers
         public async static Task<DataTable> Paso6_GuardaEnBDInteresesPorDevengar(ConnContext _connContext, DataTable dtInteresPorDev, int contIntDev)
         {
             DataTable dt = new DataTable();
-            string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_6_GuardaEnBDInteresesPorDevengar.txt");
 
-            using (StreamWriter logWriterPaso6 = new StreamWriter(logPath, append: true))
+            string basePath = AppDomain.CurrentDomain.BaseDirectory;
+            string fechaCarpeta = DateTime.Now.ToString("yyyy-MM-dd");
+            string carpetaLogs = Path.Combine(basePath, fechaCarpeta);
+
+            if (!Directory.Exists(carpetaLogs))
+            {
+                Directory.CreateDirectory(carpetaLogs);
+            }
+
+            //string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_6_GuardaEnBDInteresesPorDevengar.txt");
+            string logPath6 = Path.Combine(carpetaLogs, $"6_GuardaEnBDInteresesPorDevengar.txt_{DateTime.Now.ToShortDateString()}.txt");
+
+            using (StreamWriter logWriterPaso6 = new StreamWriter(logPath6, append: true))
             {
                 using var transaction = await _connContext.Database.BeginTransactionAsync();
 
@@ -1440,7 +1473,18 @@ namespace webApiIFRS.Controllers
         public async static Task<Int32> Paso7_GuardaEnBDIngresosDiferidos(ConnContext _connContext, DataTable dtIngresosDiferidos, DataTable dtIngresosDiferidosParaValidar)
         {
             int countIngresosDif = 0;
-            string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_7_GuardaEnBDIngresosDiferidos.txt");
+
+            string basePath = AppDomain.CurrentDomain.BaseDirectory;
+            string fechaCarpeta = DateTime.Now.ToString("yyyy-MM-dd");
+            string carpetaLogs = Path.Combine(basePath, fechaCarpeta);
+
+            if (!Directory.Exists(carpetaLogs))
+            {
+                Directory.CreateDirectory(carpetaLogs);
+            }
+
+            //string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_7_GuardaEnBDIngresosDiferidos.txt"); 
+            string logPath = Path.Combine(carpetaLogs, $"7_GuardaEnBDIngresosDiferidos.txt_{DateTime.Now.ToShortDateString()}.txt");
 
             using (StreamWriter logWriterPaso7 = new StreamWriter(logPath, append: true))
             {
@@ -1516,12 +1560,22 @@ namespace webApiIFRS.Controllers
                 return countIngresosDif; 
             }
         }
-        public async static Task<Int32> Paso9_GuardaEnBDIngresosDiferidosBovedas(ConnContext _connContext, DataTable dtIngresosDiferidosBovedas, DataTable dtIngresosDiferidosBovedasParaValidar)
+        public async static Task<Int32> Paso8_GuardaEnBDIngresosDiferidosBovedas(ConnContext _connContext, DataTable dtIngresosDiferidosBovedas, DataTable dtIngresosDiferidosBovedasParaValidar)
         {
             int countIngresosDifBov = 0;
-            string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_9_GuardaEnBDIngresosDiferidosBovedas.txt");
+            string basePath = AppDomain.CurrentDomain.BaseDirectory;
+            string fechaCarpeta = DateTime.Now.ToString("yyyy-MM-dd");
+            string carpetaLogs = Path.Combine(basePath, fechaCarpeta);
 
-            using (StreamWriter logWriterPaso9 = new StreamWriter(logPath, append: true))
+            if (!Directory.Exists(carpetaLogs))
+            {
+                Directory.CreateDirectory(carpetaLogs);
+            }
+
+            //string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_8_GuardaEnBDIngresosDiferidosBovedas.txt");
+            string logPath = Path.Combine(carpetaLogs, $"8_GuardaEnBDIngresosDiferidosBovedas.txt_{DateTime.Now.ToShortDateString()}.txt");
+
+            using (StreamWriter logWriter = new StreamWriter(logPath, append: true))
             {
                 int registrosInsertados = 0;
                 int registrosDuplicados = 0;
@@ -1562,14 +1616,14 @@ namespace webApiIFRS.Controllers
                         }
                         catch (Exception ex)
                         {
-                            await logWriterPaso9.WriteLineAsync($"Error al preparar datos de ingresos diferidos bovedas (numContrato: {GetStringValue(row, "ing_bov_num_con")}, numCuota: {GetIntValue(row, "ing_bov_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
+                            await logWriter.WriteLineAsync($"Error al preparar datos de ingresos diferidos bovedas (numContrato: {GetStringValue(row, "ing_bov_num_con")}, numCuota: {GetIntValue(row, "ing_bov_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
                         }
                     }
                     else
                     {
                         registrosDuplicados++;
                         _ingresosDifBovedasExistentes = registrosDuplicados;
-                        await logWriterPaso9.WriteLineAsync(
+                        await logWriter.WriteLineAsync(
                             $"Registro duplicado omitido en Ingresos Diferidos Bovedas (numContrato: {numCon}, numCuota: {nroCuota}) - {DateTime.Now}"
                         );
                     }
@@ -1581,25 +1635,36 @@ namespace webApiIFRS.Controllers
                     await _connContext.SaveChangesAsync();
                     _ingresosDifBovedasGuardados = registrosInsertados;
 
-                    await logWriterPaso9.WriteLineAsync(
+                    await logWriter.WriteLineAsync(
                         $"Ingresos diferidos bovedas insertados: {registrosInsertados}, duplicados omitidos: {registrosDuplicados} - {DateTime.Now}"
                     );
                 }
                 catch (Exception ex)
                 {
-                    await logWriterPaso9.WriteLineAsync($"Paso 9, Excepcion: {ex.Message} - {DateTime.Now}");
+                    await logWriter.WriteLineAsync($"Paso 8, Excepcion: {ex.Message} - {DateTime.Now}");
                 }
 
                 countIngresosDifBov = _ingresosGuardados;
                 return countIngresosDifBov;
             }
         }
-        public async static Task<Int32> Paso10_GuardaEnBDIngresosDiferidosSFT(ConnContext _connContext, DataTable dtIngresosDiferidosSFT, DataTable dtIngresosDiferidosSFTParaValidar)
+        public async static Task<Int32> Paso9_GuardaEnBDIngresosDiferidosSFT(ConnContext _connContext, DataTable dtIngresosDiferidosSFT, DataTable dtIngresosDiferidosSFTParaValidar)
         {
             int countIngresosDifSFT = 0;
-            string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_10_GuardaEnBDIngresosDiferidosSFT.txt");
 
-            using (StreamWriter logWriterPaso10 = new StreamWriter(logPath, append: true))
+            string basePath = AppDomain.CurrentDomain.BaseDirectory;
+            string fechaCarpeta = DateTime.Now.ToString("yyyy-MM-dd");
+            string carpetaLogs = Path.Combine(basePath, fechaCarpeta);
+
+            if (!Directory.Exists(carpetaLogs))
+            {
+                Directory.CreateDirectory(carpetaLogs);
+            }
+
+            //string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_10_GuardaEnBDIngresosDiferidosSFT.txt");
+            string logPath = Path.Combine(carpetaLogs, $"9_GuardaEnBDIngresosDiferidosSFT.txt_{DateTime.Now.ToShortDateString()}.txt");
+
+            using (StreamWriter logWriter = new StreamWriter(logPath, append: true))
             {
                 int registrosInsertados = 0;
                 int registrosDuplicados = 0;
@@ -1640,14 +1705,14 @@ namespace webApiIFRS.Controllers
                         }
                         catch (Exception ex)
                         {
-                            await logWriterPaso10.WriteLineAsync($"Error al preparar datos de ingresos diferidos SFT (numContrato: {GetStringValue(row, "ing_sft_num_con")}, numCuota: {GetIntValue(row, "ing_sft_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
+                            await logWriter.WriteLineAsync($"Error al preparar datos de ingresos diferidos SFT (numContrato: {GetStringValue(row, "ing_sft_num_con")}, numCuota: {GetIntValue(row, "ing_sft_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
                         }
                     }
                     else
                     {
                         registrosDuplicados++;
                         _ingresosDifSFTExistentes = registrosDuplicados;
-                        await logWriterPaso10.WriteLineAsync(
+                        await logWriter.WriteLineAsync(
                             $"Registro duplicado omitido en Ingresos Diferidos SFT (numContrato: {numCon}, numCuota: {nroCuota}) - {DateTime.Now}"
                         );
                     }
@@ -1659,25 +1724,36 @@ namespace webApiIFRS.Controllers
                     await _connContext.SaveChangesAsync();
                     _ingresosDifSFTGuardados = registrosInsertados;
 
-                    await logWriterPaso10.WriteLineAsync(
+                    await logWriter.WriteLineAsync(
                         $"Ingresos diferidos sft insertados: {registrosInsertados}, duplicados omitidos: {registrosDuplicados} - {DateTime.Now}"
                     );
                 }
                 catch (Exception ex)
                 {
-                    await logWriterPaso10.WriteLineAsync($"Paso 10, Excepcion: {ex.Message} - {DateTime.Now}");
+                    await logWriter.WriteLineAsync($"Paso 9, Excepcion: {ex.Message} - {DateTime.Now}");
                 }
 
                 countIngresosDifSFT = _ingresosGuardados;
                 return countIngresosDifSFT;
             }
         }
-        public async static Task<Int32> Paso11_GuardaEnBDIngresosDiferidosBovedasPremium(ConnContext _connContext, DataTable dtIngresosDiferidosBovedasPremium, DataTable dtIngresosDiferidosBovedasPremiumParaValidar)
+        public async static Task<Int32> Paso10_GuardaEnBDIngresosDiferidosBovedasPremium(ConnContext _connContext, DataTable dtIngresosDiferidosBovedasPremium, DataTable dtIngresosDiferidosBovedasPremiumParaValidar)
         {
             int countIngresosDifBOVP = 0;
-            string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_11_GuardaEnBDIngresosDiferidosBovedasPremium.txt");
 
-            using (StreamWriter logWriterPaso11 = new StreamWriter(logPath, append: true))
+            string basePath = AppDomain.CurrentDomain.BaseDirectory;
+            string fechaCarpeta = DateTime.Now.ToString("yyyy-MM-dd");
+            string carpetaLogs = Path.Combine(basePath, fechaCarpeta);
+
+            if (!Directory.Exists(carpetaLogs))
+            {
+                Directory.CreateDirectory(carpetaLogs);
+            }
+
+            //string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_11_GuardaEnBDIngresosDiferidosBovedasPremium.txt");
+            string logPath = Path.Combine(carpetaLogs, $"10_GuardaEnBDIngresosDiferidosBovedasPremium.txt_{DateTime.Now.ToShortDateString()}.txt");
+
+            using (StreamWriter logWriter = new StreamWriter(logPath, append: true))
             {
                 int registrosInsertados = 0;
                 int registrosDuplicados = 0;
@@ -1718,14 +1794,14 @@ namespace webApiIFRS.Controllers
                         }
                         catch (Exception ex)
                         {
-                            await logWriterPaso11.WriteLineAsync($"Error al preparar datos de ingresos diferidos bovedas premium (numContrato: {GetStringValue(row, "ing_bovp_num_con")}, numCuota: {GetIntValue(row, "ing_bovp_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
+                            await logWriter.WriteLineAsync($"Error al preparar datos de ingresos diferidos bovedas premium (numContrato: {GetStringValue(row, "ing_bovp_num_con")}, numCuota: {GetIntValue(row, "ing_bovp_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
                         }
                     }
                     else
                     {
                         registrosDuplicados++;
                         _ingresosDifBovedasPremiumExistentes = registrosDuplicados;
-                        await logWriterPaso11.WriteLineAsync(
+                        await logWriter.WriteLineAsync(
                             $"Registro duplicado omitido en Ingresos Diferidos bovedas premium (numContrato: {numCon}, numCuota: {nroCuota}) - {DateTime.Now}"
                         );
                     }
@@ -1737,25 +1813,36 @@ namespace webApiIFRS.Controllers
                     await _connContext.SaveChangesAsync();
                     _ingresosDifBovedasPremiumGuardados = registrosInsertados;
 
-                    await logWriterPaso11.WriteLineAsync(
+                    await logWriter.WriteLineAsync(
                         $"Ingresos diferidos bovedas premium insertados: {registrosInsertados}, duplicados omitidos: {registrosDuplicados} - {DateTime.Now}"
                     );
                 }
                 catch (Exception ex)
                 {
-                    await logWriterPaso11.WriteLineAsync($"Paso 11, Excepcion: {ex.Message} - {DateTime.Now}");
+                    await logWriter.WriteLineAsync($"Paso 11, Excepcion: {ex.Message} - {DateTime.Now}");
                 }
 
                 countIngresosDifBOVP = _ingresosGuardados;
                 return countIngresosDifBOVP;
             }
         }
-        public async static Task<Int32> Paso12_GuardaEnBDIngresosDiferidosNichoUpgrade(ConnContext _connContext, DataTable dtIngresosDiferidosNichoUpgrade, DataTable dtIngresosDiferidosNichoUpgradeParaValidar)
+        public async static Task<Int32> Paso11_GuardaEnBDIngresosDiferidosNichoUpgrade(ConnContext _connContext, DataTable dtIngresosDiferidosNichoUpgrade, DataTable dtIngresosDiferidosNichoUpgradeParaValidar)
         {
             int countIngresosDifNUP = 0;
-            string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_12_GuardaEnBDIngresosDiferidosNichosUpgrade.txt");
 
-            using (StreamWriter logWriterPaso12 = new StreamWriter(logPath, append: true))
+            string basePath = AppDomain.CurrentDomain.BaseDirectory;
+            string fechaCarpeta = DateTime.Now.ToString("yyyy-MM-dd");
+            string carpetaLogs = Path.Combine(basePath, fechaCarpeta);
+
+            if (!Directory.Exists(carpetaLogs))
+            {
+                Directory.CreateDirectory(carpetaLogs);
+            }
+
+            //string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_11_GuardaEnBDIngresosDiferidosNichosUpgrade.txt");
+            string logPath = Path.Combine(carpetaLogs, $"11_GuardaEnBDIngresosDiferidosNichosUpgrade.txt_{DateTime.Now.ToShortDateString()}.txt");
+
+            using (StreamWriter logWriter = new StreamWriter(logPath, append: true))
             {
                 int registrosInsertados = 0;
                 int registrosDuplicados = 0;
@@ -1796,14 +1883,14 @@ namespace webApiIFRS.Controllers
                         }
                         catch (Exception ex)
                         {
-                            await logWriterPaso12.WriteLineAsync($"Error al preparar datos de ingresos diferidos nichos upgrade (numContrato: {GetStringValue(row, "ing_nup_num_con")}, numCuota: {GetIntValue(row, "ing_nup_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
+                            await logWriter.WriteLineAsync($"Error al preparar datos de ingresos diferidos nichos upgrade (numContrato: {GetStringValue(row, "ing_nup_num_con")}, numCuota: {GetIntValue(row, "ing_nup_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
                         }
                     }
                     else
                     {
                         registrosDuplicados++;
                         _ingresosDifNichoUpgradeExistentes = registrosDuplicados;
-                        await logWriterPaso12.WriteLineAsync(
+                        await logWriter.WriteLineAsync(
                             $"Registro duplicado omitido en Ingresos Diferidos Nichos Upgrade (numContrato: {numCon}, numCuota: {nroCuota}) - {DateTime.Now}"
                         );
                     }
@@ -1815,13 +1902,13 @@ namespace webApiIFRS.Controllers
                     await _connContext.SaveChangesAsync();
                     _ingresosDifNichoUpgradeGuardados = registrosInsertados;
 
-                    await logWriterPaso12.WriteLineAsync(
+                    await logWriter.WriteLineAsync(
                         $"Ingresos diferidos nichos upgrade insertados: {registrosInsertados}, duplicados omitidos: {registrosDuplicados} - {DateTime.Now}"
                     );
                 }
                 catch (Exception ex)
                 {
-                    await logWriterPaso12.WriteLineAsync($"Paso 12, Excepcion: {ex.Message} - {DateTime.Now}");
+                    await logWriter.WriteLineAsync($"Paso 11, Excepcion: {ex.Message} - {DateTime.Now}");
                 }
 
                 countIngresosDifNUP = _ingresosGuardados;
