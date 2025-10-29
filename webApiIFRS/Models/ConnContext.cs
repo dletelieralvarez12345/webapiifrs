@@ -17,6 +17,8 @@ namespace webApiIFRS.Models
         //DbSet representa el conjunto de entidades, en entityFram.. un conj de 
         //entidades se alinea con una tabla de la BD y una entidad corresponde 
         //a una fila individual dentro de la tabla.
+
+        #region DBSET REPRESENTA CONJUNTO DE ENTIDADES 
         public DbSet<Contrato> Contrato { get; set; } = null;
         public DbSet<ContratoDTO> ContratoDTO { get; set; } = null;
         public DbSet<IngresosDiferidosNichos> IngresosDiferidos { get; set; } = null;
@@ -30,6 +32,10 @@ namespace webApiIFRS.Models
         public DbSet<IngresosDiferidosBovedas> IngresosDiferidosBovedas { get; set; } = null;
         public DbSet<IngresosDiferidosSFT> IngresosDiferidosSFT { get; set; } = null;
         public DbSet<IngresosDiferidosBovedasPremium> IngresosDiferidosBovedasPremium { get; set; } = null;
+        public DbSet<IngresosDiferidosNichosUpgrade> IngresosDiferidosNichosUpgrade { get; set; } = null;
+        #endregion
+
+        #region CONFIGURA EL MODELO DE DATOS QUE EF USARÁ PARA MAPEAR LAS CLASES C# A LAS TABLAS DE LA BASE DE DATOS.
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -62,26 +68,9 @@ namespace webApiIFRS.Models
                       .ValueGeneratedNever();
             });
         }
+        #endregion
 
-
-        //PROCEDIMIENTOS ALMACENADOS SIN PARAMETROS
-        public async Task<DataTable> getContratos()
-        {
-            var contratos = await Contrato
-                .FromSqlRaw("EXEC SP_IFRS_GETALLCONTRATOS")
-                .ToListAsync();
-            return new DataTable();
-        }
-
-        //PROCEDIMIENTOS ALMACENADOS CON PARAMETROS
-        public async Task<DataTable> getContratoByNumCon(int numContrato)
-        {
-            var contrato = await Contrato
-                .FromSqlInterpolated($"EXEC SP_IFRS_GETCONTRATO_BY_NUMCON {numContrato}")
-                .ToListAsync();
-            return new DataTable(); 
-        }
-
+        #region PROC.ALMACENADO QUE RETORNA TODOS LOS CONTRATOS DE UNA FECHA, ESTOS DATOS PROVIENEN DE TABLA CONTRATOS
         public async Task<DataTable> ListaContratosPorAnio(int anio)
         {
             DataTable dt = new DataTable();
@@ -148,7 +137,9 @@ namespace webApiIFRS.Models
 
             return dt;
         }
+        #endregion
 
+        #region PROC.ALMACENADO QUE RETORNA TODOS LOS CONTRATOS DE UNA FECHA, ESTOS DATOS PROVIENEN DE VISTA INGRESOS CONTABLES
         public async Task<DataTable> ListaIngresosDeVentasAllContratos()
         {
             DataTable dt = new DataTable();
@@ -214,7 +205,9 @@ namespace webApiIFRS.Models
             }
             return dt;
         }
+        #endregion
 
+        #region PROC.ALMACENADO QUE RETORNA PAGOS REALIZADOS DE UNA FECHA
         public async Task<DataTable> ObtenerPagosRealizados(int anio)
         {
             DataTable dt = new DataTable();
@@ -248,7 +241,9 @@ namespace webApiIFRS.Models
 
             return dt;
         }
+        #endregion
 
+        #region PROC.ALMACENADO QUE RETORNA PAGOS REALIZADOS TERRENO
         public async Task<DataTable> ObtenerPagosRealizadosTerreno(int anio)
         {
             DataTable dt = new DataTable();
@@ -278,7 +273,9 @@ namespace webApiIFRS.Models
             }
             return dt;
         }
+        #endregion
 
+        #region PROC.ALMACENADO QUE RETORNA MODIFICACIONES DE CONTRATOS DE UNA FECHA
         public async Task<DataTable> ObtenerModificaciones(int anio)
         {
             DataTable dt = new DataTable();
@@ -320,7 +317,9 @@ namespace webApiIFRS.Models
 
             return dt;
         }
+        #endregion
 
+        #region PROC.ALMACENADO QUE RETORNA FECHA PRIMER VENCIMIENTO BOVEDA DE UNA FECHA
         public async Task<DataTable> ObtenerFechaPrimerVctoBov(int anio)
         {
 
@@ -345,7 +344,9 @@ namespace webApiIFRS.Models
 
             return dt;
         }
+        #endregion
 
+        #region PROC.ALMACENADO QUE RETORNA INTERESES POR DEVENGAR POR FECHA
         public async Task<DataTable> ObtenerInteresPorDev_ListadoContratosYsusCuotas(int anio)
         {
             DataTable dt = new DataTable();
@@ -395,7 +396,9 @@ namespace webApiIFRS.Models
 
             return dt;
         }
+        #endregion
 
+        #region PROC.ALMACENADO QUE RETORNA INGRESOS DIFERIDOS NICHOS POR FECHA 
         public async Task<DataTable> ObtenerIngresosDiferidosNichos_ListaCuotas(int anio)
         {
             DataTable dt = new DataTable(); 
@@ -431,7 +434,9 @@ namespace webApiIFRS.Models
 
             return dt;
         }
+        #endregion
 
+        #region PROC.ALMACENADO QUE RETORNA DERECHOS Y SERVICIOS SIN IVA POR FECHA
         public async Task<DataTable> ObtenerDerechosServiciosSinIva(int anio)
         {
             DataTable dt = new DataTable();
@@ -457,12 +462,16 @@ namespace webApiIFRS.Models
 
             return dt;
         }
+        #endregion
 
+        #region PROC.ALMACENADO QUE ACTUALIZA INTERESES POR DEVENGAR
         public async Task ActualizarInteresesPorDevengarSegunContrato()
         {
             await Database.ExecuteSqlRawAsync("SP_IFRS_ACTUALIZA_INTERESES_POR_CONTRATO"); 
         }
+        #endregion
 
+        #region PROC.ALMACENADO OBTIENE FECHA TERMINO DEL PRODUCTO 
         public async Task<DataTable> obtenerFechaTerminoProducto()
         {
             DataTable dt = new DataTable(); 
@@ -497,5 +506,6 @@ namespace webApiIFRS.Models
 
             return dt; 
         }
-    } 
+        #endregion 
+    }
 }

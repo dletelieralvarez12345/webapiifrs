@@ -25,6 +25,7 @@ namespace webApiIFRS.Controllers
         private readonly ConnContextSEPULTA _connSepulta;
         private readonly ConnContextSICM _connSICM; 
         private readonly ConnContextSICMPBI _connSICMPBI;
+
         public static int _interesesGuardados = 0;
         public static int _ingresosGuardados = 0;
         public static int _interesesDevExistentes = 0;
@@ -35,6 +36,8 @@ namespace webApiIFRS.Controllers
         public static int _ingresosDifSFTGuardados = 0;
         public static int _ingresosDifBovedasPremiumExistentes = 0;
         public static int _ingresosDifBovedasPremiumGuardados = 0;
+        public static int _ingresosDifNichoUpgradeExistentes = 0;
+        public static int _ingresosDifNichoUpgradeGuardados = 0;
 
         public ContratosController(ConnContext connContext, 
             ConnContextCTACTE connCtaCte, 
@@ -48,7 +51,8 @@ namespace webApiIFRS.Controllers
             _connSICM = connSICM;
             _connSICMPBI = connSICMPBI;
         }
-        
+
+        #region ENDPOINT
         //Lista todos los contratos
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Contrato>>> GetAllContratos()
@@ -135,7 +139,7 @@ namespace webApiIFRS.Controllers
             return Ok(ingresos);
         }
 
-
+        //metodo que genera tabla de amortización e ingresa en BD de Finanzas. 
         [HttpPost("ProcesarContratos")]
         public async Task<IActionResult> ProcesarContratos()
         {
@@ -163,6 +167,8 @@ namespace webApiIFRS.Controllers
             DataTable dtIngresosDiferidosSFTParaValidar = new DataTable();
             DataTable dtIngresosDiferidosBovedasPremium = new DataTable();
             DataTable dtIngresosDiferidosBovedasPremiumParaValidar = new DataTable();
+            DataTable dtIngresosDiferidosNichosUpgrade = new DataTable();
+            DataTable dtIngresosDiferidosNichosUpgradeParaValidar = new DataTable();
 
             DateTime fechaVto = new DateTime();
             DateTime fechaVtoOriginal = new DateTime();
@@ -565,7 +571,20 @@ namespace webApiIFRS.Controllers
                         dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_fecha_contab", typeof(DateTime));
                         dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_estado_contab", typeof(int));
                     }
+
+                    if (dtIngresosDiferidosNichosUpgrade.Columns.Count == 0)
+                    {
+                        dtIngresosDiferidosNichosUpgrade.Columns.Add("ID", typeof(int));
+                        dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_num_con", typeof(string));
+                        dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_precio_base", typeof(decimal));
+                        dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_nro_cuota", typeof(int));
+                        dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_interes_diferido", typeof(decimal));
+                        dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_fecha_devengo", typeof(DateTime));
+                        dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_fecha_contab", typeof(DateTime));
+                        dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_estado_contab", typeof(int));
+                    }
                     
+
                     correlativo_int_dev++;
 
                     /*TOMO SOLO LOS CONTRATOS CON CUOTAS MAYOR A CERO PARA GUARDAR LOS INTERESES POR DEVENGAR*/
@@ -865,9 +884,49 @@ namespace webApiIFRS.Controllers
                             }
                         }
                     }
-                    
+                    else if(tipoIngreso == 4)
+                    {
+                        /*NICHO UPGRADE SE GENERA INGRESO DIFERIDO PARA LAS QUE NO TIENEN FECHA DE TERMINO*/
+                        string logPath_paso2_5 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2.4_cargaIngresosDiferidosBovedasPremium.txt");
+                        using (StreamWriter logWriter_paso2_5 = new StreamWriter(logPath_paso2_5, append: true))
+                        {
+                            DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(1);
+                            DateTime fechaDevengo = fechaIngreso_;
+
+                            try
+                            {
+                                if (fechaTerminoProducto == null)
+                                {   /*VENTA EN VERDE*/
+                                    if (precioBase > 0)
+                                    {
+                                        DataRow filaNuevaIng = dtIngresosDiferidosNichosUpgrade.NewRow();
+                                        filaNuevaIng["ing_nup_num_con"] = numeroContrato;
+                                        filaNuevaIng["ing_nup_nro_cuota"] = 1;
+                                        filaNuevaIng["ing_nup_precio_base"] = precioBase;
+                                        filaNuevaIng["ing_nup_interes_diferido"] = precioBase;
+                                        filaNuevaIng["ing_nup_fecha_devengo"] = fechaDevengo;
+                                        filaNuevaIng["ing_nup_fecha_contab"] = DBNull.Value;
+                                        filaNuevaIng["ing_nup_estado_contab"] = 0;
+                                        dtIngresosDiferidosNichosUpgrade.Rows.Add(filaNuevaIng);
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logWriter_paso2_5.WriteLineAsync($"Falló ingreso diferidos nichos upgrade, contrato: {numeroContrato}, Excepcion capturada: {ex.Message} - {DateTime.Now}");
+                            }
+                            finally
+                            {
+                                if (dtIngresosDiferidosBovedas.Rows.Count == 0)
+                                {
+                                    logWriter_paso2_5.WriteLineAsync($"DataTable dtIngresosDiferidosNichosUpgrade no tiene registros - {DateTime.Now}");
+                                }
+                            }
+                        }
+                    }                    
                 }
 
+                
                 correlativo_int_dev++;
 
                 string logPathPaso3 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_3_cargaDTModReacResc.txt");
@@ -1016,7 +1075,7 @@ namespace webApiIFRS.Controllers
                     }
                 }
 
-                /******busca los datos a borrar*****/
+                /****** Busca los datos a borrar *****/
                 string logPathPaso4 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_4_Elimina_e_Inactiva.txt");
                 using (StreamWriter logWriterPaso4 = new StreamWriter(logPathPaso4, append: true))
                 {
@@ -1115,8 +1174,7 @@ namespace webApiIFRS.Controllers
                     }
                 }
 
-                //correlativo_int_dev++;
-                //actualiza los capitales de las modificaciones
+                /****** Actualiza los capitales de las modificaciones ******/
                 string logPathPaso5 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_5_ActualizaLosCapitalesDeLasModificaciones.txt");
                 using (StreamWriter logWriterPaso5 = new StreamWriter(logPathPaso5, append: true))
                 {
@@ -1196,7 +1254,7 @@ namespace webApiIFRS.Controllers
                     }
                 }
 
-                //agregamos al datatable dtInteresPorDev las filas con estado 3, anulado por modificación
+                /****** Agregamos al datatable dtInteresPorDev las filas con estado 3, anulado por modificación ******/
                 if (dtInteresPorDevInactivos.Rows.Count > 0)
                 {
                     foreach (DataRow row in dtInteresPorDevInactivos.Rows)
@@ -1205,14 +1263,14 @@ namespace webApiIFRS.Controllers
                     }
                 }
 
-                //recorremos el datatable dtInteresPorDev y guardamos en la tabla de la BD
+                /****** Recorremos el datatable dtInteresPorDev y guardamos en la tabla de la BD ******/
                 int contIntDev = 0;
                 if (dtInteresPorDev.Rows.Count > 0)
                 {
                     dtInteresPorDev = await Paso6_GuardaEnBDInteresesPorDevengar(_connContext, dtInteresPorDev, contIntDev);
                 }
 
-                //recorremos el datatable dtIngresosDiferidos y guardamos en la tabla de la BD pero primero vemos si ya existe el registro 
+                /****** Recorremos el datatable IngresosDiferidos de cada producto y guardamos en la tabla de la BD pero primero vemos si ya existe el registro ******/
                 int cont = 0;
                 if (dtIngresosDiferidos.Rows.Count > 0) 
                 {
@@ -1237,35 +1295,48 @@ namespace webApiIFRS.Controllers
                     contIngBOVP = await Paso11_GuardaEnBDIngresosDiferidosBovedasPremium(_connContext, dtIngresosDiferidosBovedasPremium, dtIngresosDiferidosBovedasPremiumParaValidar);
                 }
 
-                return Ok(new
+                int contIngNichoUpg = 0;
+                if (dtIngresosDiferidosNichosUpgrade.Rows.Count > 0)
                 {
-                    registrosContratosEsperados = dtContratos.Rows.Count,
-                    registrosContratosGuardados = contratosGuardados,
-                    registrosContratosExistentes = contContratosExistentes,
+                    contIngNichoUpg = await Paso11_GuardaEnBDIngresosDiferidosBovedasPremium(_connContext, dtIngresosDiferidosNichosUpgrade, dtIngresosDiferidosNichosUpgradeParaValidar);
+                }
+                /****************************************************************************************/
 
-                    registrosInteresesEsperados = dtInteresPorDev.Rows.Count,
-                    registrosInteresesInsertados = _interesesGuardados,
-                    registrosInteresesYaExisten = _interesesDevExistentes,
+            return Ok(new
+                {
+                    Contratos_Esperados = dtContratos.Rows.Count,
+                    Contratos_Guardados = contratosGuardados,
+                    Contratos_Existentes = contContratosExistentes,
 
-                    registrosIngresosEsperados = dtIngresosDiferidos.Rows.Count,
-                    registrosIngresosInsertados = _ingresosGuardados,
-                    registrosIngresosYaExisten = _ingresosDifNichosExistentes,
+                    InteresesPorDevengar_Esperados = dtInteresPorDev.Rows.Count,
+                    InteresesPorDevengar_Insertados = _interesesGuardados,
+                    InteresesPorDevengar_YaExisten = _interesesDevExistentes,
 
-                    registrosIngresosBovedasEsperados = dtIngresosDiferidosBovedas.Rows.Count,
-                    registrosIngresosBovedasInsertados = _ingresosDifBovedasGuardados,
-                    registrosIngresosBovedasYaExisten = _ingresosDifBovedasExistentes,
+                    IngresosDiferidos_Esperados = dtIngresosDiferidos.Rows.Count,
+                    IngresosDiferidos_Insertados = _ingresosGuardados,
+                    IngresosDiferidos_YaExisten = _ingresosDifNichosExistentes,
 
-                    registrosIngresosSFTEsperados = dtIngresosDiferidosSFT.Rows.Count,
-                    registrosIngresosSFTInsertados = _ingresosDifSFTGuardados,
-                    registrosIngresosSFTYaExisten = _ingresosDifSFTExistentes, 
+                    IngresosDiferidosBovedas_Esperados = dtIngresosDiferidosBovedas.Rows.Count,
+                    IngresosDiferidosBovedas_Insertados = _ingresosDifBovedasGuardados,
+                    IngresosDiferidosBovedas_YaExisten = _ingresosDifBovedasExistentes,
 
-                    registrosIngresosBovedasPremiumEsperados = dtIngresosDiferidosBovedasPremium.Rows.Count,
-                    registrosIngresosBovedasPremiumInsertados = _ingresosDifBovedasPremiumGuardados,
-                    registrosIngresosBovedasPremiumYaExisten = _ingresosDifBovedasPremiumExistentes
+                    IngresosDiferidosSFT_Esperados = dtIngresosDiferidosSFT.Rows.Count,
+                    IngresosDiferidosSFT_Insertados = _ingresosDifSFTGuardados,
+                    IngresosDiferidosSFT_YaExisten = _ingresosDifSFTExistentes, 
+
+                    IngresosDiferidosBovedasPremium_Esperados = dtIngresosDiferidosBovedasPremium.Rows.Count,
+                    IngresosDiferidosBovedasPremium_Insertados = _ingresosDifBovedasPremiumGuardados,
+                    IngresosDiferidosBovedasPremium_YaExisten = _ingresosDifBovedasPremiumExistentes,
+
+                    IngresosDiferidosNichoUpgrade_Esperados = dtIngresosDiferidosNichosUpgrade.Rows.Count,
+                    IngresosDiferidosNichoUpgrade_Insertados = _ingresosDifNichoUpgradeGuardados,
+                    IngresosDiferidosNichoUpgrade_YaExisten = _ingresosDifNichoUpgradeExistentes 
                 });    
             }
         }
+        #endregion
 
+        #region GUARDA INTERESES POR DEVENGAR DE CONTRATOS EN CUOTAS Y/ ARRIENDO
         public async static Task<DataTable> Paso6_GuardaEnBDInteresesPorDevengar(ConnContext _connContext, DataTable dtInteresPorDev, int contIntDev)
         {
             DataTable dt = new DataTable();
@@ -1363,7 +1434,9 @@ namespace webApiIFRS.Controllers
                 return dt;
             }
         }
+        #endregion
 
+        #region GUARDA INGRESOS DIFERIDOS NICHOS, BOV, BOV PRE, NICHOS UPG, SFT Y GENERA LOGS
         public async static Task<Int32> Paso7_GuardaEnBDIngresosDiferidos(ConnContext _connContext, DataTable dtIngresosDiferidos, DataTable dtIngresosDiferidosParaValidar)
         {
             int countIngresosDif = 0;
@@ -1443,7 +1516,6 @@ namespace webApiIFRS.Controllers
                 return countIngresosDif; 
             }
         }
-
         public async static Task<Int32> Paso9_GuardaEnBDIngresosDiferidosBovedas(ConnContext _connContext, DataTable dtIngresosDiferidosBovedas, DataTable dtIngresosDiferidosBovedasParaValidar)
         {
             int countIngresosDifBov = 0;
@@ -1522,7 +1594,6 @@ namespace webApiIFRS.Controllers
                 return countIngresosDifBov;
             }
         }
-
         public async static Task<Int32> Paso10_GuardaEnBDIngresosDiferidosSFT(ConnContext _connContext, DataTable dtIngresosDiferidosSFT, DataTable dtIngresosDiferidosSFTParaValidar)
         {
             int countIngresosDifSFT = 0;
@@ -1672,19 +1743,101 @@ namespace webApiIFRS.Controllers
                 }
                 catch (Exception ex)
                 {
-                    await logWriterPaso11.WriteLineAsync($"Paso 10, Excepcion: {ex.Message} - {DateTime.Now}");
+                    await logWriterPaso11.WriteLineAsync($"Paso 11, Excepcion: {ex.Message} - {DateTime.Now}");
                 }
 
                 countIngresosDifBOVP = _ingresosGuardados;
                 return countIngresosDifBOVP;
             }
         }
-        
+        public async static Task<Int32> Paso12_GuardaEnBDIngresosDiferidosNichoUpgrade(ConnContext _connContext, DataTable dtIngresosDiferidosNichoUpgrade, DataTable dtIngresosDiferidosNichoUpgradeParaValidar)
+        {
+            int countIngresosDifNUP = 0;
+            string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_12_GuardaEnBDIngresosDiferidosNichosUpgrade.txt");
+
+            using (StreamWriter logWriterPaso12 = new StreamWriter(logPath, append: true))
+            {
+                int registrosInsertados = 0;
+                int registrosDuplicados = 0;
+
+                var clavesExistentes = await _connContext.IngresosDiferidosNichosUpgrade
+                                        .Select(x => new { x.ing_nup_num_con, x.ing_nup_nro_cuota })
+                                        .ToListAsync();
+
+                var hashClaves = new HashSet<(string, int)>(
+                                    clavesExistentes.Select(c => (c.ing_nup_num_con.Trim(), c.ing_nup_nro_cuota))
+                                );
+
+                foreach (DataRow row in dtIngresosDiferidosNichoUpgrade.Rows)
+                {
+                    string numCon = GetStringValue(row, "ing_nup_num_con").Trim();
+                    int nroCuota = GetIntValue(row, "ing_nup_nro_cuota");
+
+                    bool yaExiste = hashClaves.Contains((numCon, nroCuota));
+
+                    if (!yaExiste)
+                    {
+                        try
+                        {
+                            var ingresosDifNichosUpgrade = new IngresosDiferidosNichosUpgrade
+                            {
+                                ing_nup_num_con = GetStringValue(row, "ing_nup_num_con"),
+                                ing_nup_precio_base = GetDecimalValue(row, "ing_nup_precio_base"),
+                                ing_nup_nro_cuota = GetIntValue(row, "ing_nup_nro_cuota"),
+                                ing_nup_interes_diferido = GetDecimalValue(row, "ing_nup_interes_diferido"),
+                                ing_nup_fecha_devengo = GetDateValue(row, "ing_nup_fecha_devengo"),
+                                ing_nup_fecha_contab = GetDateValue(row, "ing_nup_fecha_contab"),
+                                ing_nup_estado_contab = GetIntValue(row, "ing_nup_estado_contab"),
+                                ing_nup_fecha = DateTime.Now
+                            };
+                            await _connContext.IngresosDiferidosNichosUpgrade.AddAsync(ingresosDifNichosUpgrade);
+                            registrosInsertados++;
+                            hashClaves.Add((numCon, nroCuota));
+                        }
+                        catch (Exception ex)
+                        {
+                            await logWriterPaso12.WriteLineAsync($"Error al preparar datos de ingresos diferidos nichos upgrade (numContrato: {GetStringValue(row, "ing_nup_num_con")}, numCuota: {GetIntValue(row, "ing_nup_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
+                        }
+                    }
+                    else
+                    {
+                        registrosDuplicados++;
+                        _ingresosDifNichoUpgradeExistentes = registrosDuplicados;
+                        await logWriterPaso12.WriteLineAsync(
+                            $"Registro duplicado omitido en Ingresos Diferidos Nichos Upgrade (numContrato: {numCon}, numCuota: {nroCuota}) - {DateTime.Now}"
+                        );
+                    }
+                }
+
+                try
+                {
+                    //guarda en la BD
+                    await _connContext.SaveChangesAsync();
+                    _ingresosDifNichoUpgradeGuardados = registrosInsertados;
+
+                    await logWriterPaso12.WriteLineAsync(
+                        $"Ingresos diferidos nichos upgrade insertados: {registrosInsertados}, duplicados omitidos: {registrosDuplicados} - {DateTime.Now}"
+                    );
+                }
+                catch (Exception ex)
+                {
+                    await logWriterPaso12.WriteLineAsync($"Paso 12, Excepcion: {ex.Message} - {DateTime.Now}");
+                }
+
+                countIngresosDifNUP = _ingresosGuardados;
+                return countIngresosDifNUP;
+            }
+        }
+        #endregion
+
+        #region METODO PARA OBTENER EL ULTIMO DIA DEL MES DE UNA FECHA EN PARTICULAR
         public static DateTime GetUltimoDiaDelMes(DateTime fecha)
         {
             return new DateTime(fecha.Year, fecha.Month, DateTime.DaysInMonth(fecha.Year, fecha.Month));
         }
-
+        #endregion
+        
+        #region METODO DE CALCULO VALOR ACTUAL
         public static double valorActual(double valorFuturo, int periodos)
         {
             // Variables
@@ -1711,7 +1864,9 @@ namespace webApiIFRS.Controllers
             }
             return valorActual;
         }
-
+        #endregion
+        
+        #region METODO DE CALCULO MESES DE ATRASO
         public static double mesesAtrasados(string fechaUltVto, string fecha2)
         {
             double retorno = 0;
@@ -1748,15 +1903,18 @@ namespace webApiIFRS.Controllers
             return retorno;
 
         }
+        #endregion
 
+        #region METODO DE REDONDEO
         public static double redondearExcel(double value, int digits)
         {
             double pow = Math.Pow(10, digits);
             return Math.Truncate(value * pow + Math.Sign(value) * 0.5) / pow;
 
         }
+        #endregion
 
-        # region "VALIDADORES EN CASO DE NULL O VACIO"
+        #region "VALIDADORES EN CASO DE NULL O VACIO"
         private static int GetIntValue(DataRow row, string columnName)
         {
             return row[columnName] == DBNull.Value || string.IsNullOrWhiteSpace(row[columnName].ToString()) ? 0 : Convert.ToInt32(row[columnName]);
