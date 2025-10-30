@@ -1119,7 +1119,7 @@ namespace webApiIFRS.Controllers
                         tblEliminadosID.Columns.Add("ID", typeof(Int64));
 
                         var contratosConModificacionInicial = dtInteresPorDev.AsEnumerable()
-                            .Where(row => row.Field<string>("int_tipo_movimiento") == "Modicicación Inicial")
+                            .Where(row => row.Field<string>("int_tipo_movimiento") == "Modificación Inicial")
                             .Select(row => row.Field<string>("int_num_con"))
                             .Distinct()
                             .ToList();
@@ -1128,15 +1128,18 @@ namespace webApiIFRS.Controllers
                         {
                             var cuotasPendientes = dtInteresPorDev.AsEnumerable()
                                 .Where(row => row.Field<string>("int_num_con") == contrato &&
-                                              row.Field<int>("int_estado_cuota") == 1 &&
+                                              (row.Field<int?>("int_estado_cuota") ?? 0) == 1 &&
                                               row.Field<string>("int_tipo_movimiento") == "Cuota")
                                 .ToList();
 
                             foreach (var cuota in cuotasPendientes)
                             {
-                                DataRow rowElimina = tblEliminadosID.NewRow();
-                                rowElimina["ID"] = cuota["ID"];
-                                tblEliminadosID.Rows.Add(rowElimina);
+                                if (cuota["ID"] != DBNull.Value)
+                                {
+                                    DataRow rowElimina = tblEliminadosID.NewRow();
+                                    rowElimina["ID"] = cuota["ID"];
+                                    tblEliminadosID.Rows.Add(rowElimina);
+                                }
                             }
                         }
 
@@ -1182,6 +1185,7 @@ namespace webApiIFRS.Controllers
                                 DataRow copia = dtInteresPorDevInactivos.NewRow();
                                 copia.ItemArray = rowInactivo.ItemArray.Clone() as object[];
                                 copia["int_estado_cuota"] = 3;
+                                copia["int_tipo_movimiento"] = "Cuota anulada por modificación"; 
                                 dtInteresPorDevInactivos.Rows.Add(copia);
 
                                 dtInteresPorDev.Rows[Convert.ToInt32(row["ID"]) - 1].Delete();
@@ -1214,25 +1218,29 @@ namespace webApiIFRS.Controllers
                                         .Where(row => row.Field<string>("con_num_con") == (string)dtInteresPorDev.Rows[i]["int_num_con"] && row.Field<int>("con_cuotas_pactadas") > 0)
                                         .Select(row => row.Field<decimal>("con_total_credito"))
                                         .FirstOrDefault();
-                                
-                                //si el total del credito es 0 tomamos el total credito del contrato
-                                if (Convert.ToInt32(dtInteresPorDev.Rows[i - 1]["int_saldo_final"]) == 0)
+
+                                if (i > 0 && Convert.ToInt32(dtInteresPorDev.Rows[i - 1]["int_saldo_final"]) == 0)
                                 {
-                                    if (Convert.ToInt32(totalCreditoContrato) == 0)
+                                    //si el total del credito es 0 tomamos el total credito del contrato
+                                    if (Convert.ToInt32(dtInteresPorDev.Rows[i - 1]["int_saldo_final"]) == 0)
                                     {
-                                        saldoInicial = Convert.ToInt32(dtInteresPorDev.Rows[i - 1]["int_saldo_final"]) * Math.Pow((1 + 0.02), mesesAtrasados(dtInteresPorDev.Rows[i - 1]["int_fecha_vcto"].ToString(), dtInteresPorDev.Rows[i]["int_fecha_pago"].ToString()));
+                                        //if (Convert.ToInt32(totalCreditoContrato) == 0)
+                                        if (dtInteresPorDev.Rows[i - 1]["total_credito"] == DBNull.Value)
+                                        {
+                                            saldoInicial = Convert.ToInt32(dtInteresPorDev.Rows[i - 1]["int_saldo_final"]) * Math.Pow((1 + 0.02), mesesAtrasados(dtInteresPorDev.Rows[i - 1]["int_fecha_vcto"].ToString(), dtInteresPorDev.Rows[i]["int_fecha_pago"].ToString()));
+                                        }
+                                        else
+                                        {
+                                            saldoInicial = Convert.ToInt32(totalCreditoContrato) * Math.Pow((1 + 0.02), mesesAtrasados(dtInteresPorDev.Rows[i - 1]["int_fecha_vcto"].ToString(), dtInteresPorDev.Rows[i]["int_fecha_pago"].ToString()));
+                                        }
                                     }
                                     else
                                     {
-                                        saldoInicial = Convert.ToInt32(totalCreditoContrato) * Math.Pow((1 + 0.02), mesesAtrasados(dtInteresPorDev.Rows[i - 1]["int_fecha_vcto"].ToString(), dtInteresPorDev.Rows[i]["int_fecha_pago"].ToString()));
+                                        saldoInicial = Convert.ToInt32(dtInteresPorDev.Rows[i - 1]["int_saldo_final"]) * Math.Pow((1 + 0.02), mesesAtrasados(dtInteresPorDev.Rows[i - 1]["int_fecha_vcto"].ToString(), dtInteresPorDev.Rows[i]["int_fecha_pago"].ToString()));
                                     }
+                                    dtInteresPorDev.Rows[i]["int_saldo_inicial"] = (int)saldoInicial;
+                                    dtInteresPorDev.Rows[i]["int_saldo_final"] = (int)saldoInicial - Convert.ToInt32(dtInteresPorDev.Rows[i]["int_cuota_final"]);
                                 }
-                                else
-                                {
-                                    saldoInicial = Convert.ToInt32(dtInteresPorDev.Rows[i - 1]["int_saldo_final"]) * Math.Pow((1 + 0.02), mesesAtrasados(dtInteresPorDev.Rows[i - 1]["int_fecha_vcto"].ToString(), dtInteresPorDev.Rows[i]["int_fecha_pago"].ToString()));
-                                }
-                                dtInteresPorDev.Rows[i]["int_saldo_inicial"] = (int)saldoInicial;
-                                dtInteresPorDev.Rows[i]["int_saldo_final"] = (int)saldoInicial - Convert.ToInt32(dtInteresPorDev.Rows[i]["int_cuota_final"]);
                             }
 
                             //calculo para las cuotas de modificación
@@ -1283,6 +1291,13 @@ namespace webApiIFRS.Controllers
                     {
                         dtInteresPorDev.ImportRow(row);
                     }
+
+                    //reordena ya que las cuotas quedaban de forma desc
+                    dtInteresPorDev = dtInteresPorDev
+                        .AsEnumerable()
+                        .OrderBy(r => r.Field<int>("int_correlativo"))
+                        .ThenBy(r => r.Field<int>("int_nro_cuota"))
+                        .CopyToDataTable(); 
                 }
 
                 /****** Recorremos el datatable dtInteresPorDev y guardamos en la tabla de la BD ******/
@@ -1945,9 +1960,9 @@ namespace webApiIFRS.Controllers
 
                 // Redondeo al múltiplo de 10,000 más cercano y conversión a entero
                 /********************CONSIDERAR REDONDEO SOLO CONTRATOS DE 2025 HACIA ATRAS********************/
-                double resultadoFinal = (int)redondearExcel(resultado, -4);
+                //double resultadoFinal = (int)redondearExcel(resultado, -4);
+                double resultadoFinal = (int)resultado;
                 valorActual = resultadoFinal;
-                //valorActual = resultado;
             }
             return valorActual;
         }
