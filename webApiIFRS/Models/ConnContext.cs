@@ -33,6 +33,7 @@ namespace webApiIFRS.Models
         public DbSet<IngresosDiferidosSFT> IngresosDiferidosSFT { get; set; } = null;
         public DbSet<IngresosDiferidosBovedasPremium> IngresosDiferidosBovedasPremium { get; set; } = null;
         public DbSet<IngresosDiferidosNichosUpgrade> IngresosDiferidosNichosUpgrade { get; set; } = null;
+        public DbSet<ServiciosNUP> serviciosNUP { get; set; } = null; 
         #endregion
 
         #region CONFIGURA EL MODELO DE DATOS QUE EF USARÁ PARA MAPEAR LAS CLASES C# A LAS TABLAS DE LA BASE DE DATOS.
@@ -47,6 +48,7 @@ namespace webApiIFRS.Models
             modelBuilder.Entity<ContratoDTO>().HasNoKey();
             modelBuilder.Entity<DerechosServicios>().HasNoKey();
             modelBuilder.Entity<TerminoProducto>().HasNoKey();
+            modelBuilder.Entity<ServiciosNUP>().HasNoKey(); 
 
             modelBuilder.Entity<Contrato>(entity =>
             {
@@ -457,6 +459,34 @@ namespace webApiIFRS.Models
                     p.numero_comprobante,
                     p.total_serv_der_sin_iva, 
                     p.total_serv_der_con_iva
+                    );
+            }
+
+            return dt;
+        }
+        #endregion
+
+        #region PROC.ALMACENADO QUE RETORNA SERVICIOS NICHO UPGRADE POR FECHA
+        public async Task<DataTable> ObtenerDerechosServiciosNUP(int anio)
+        {
+            DataTable dt = new DataTable();
+
+            var servicios_NUP = await serviciosNUP
+                .FromSqlInterpolated($"EXEC SP_IFRS_LISTA_SERVICIOS_CONTRATOS_NUP {anio}")
+                .ToListAsync();
+
+            dt.Columns.Add("numero_contrato", typeof(string));
+            dt.Columns.Add("fecha_contrato", typeof(DateTime));
+            dt.Columns.Add("numero_comprobante", typeof(int));
+            dt.Columns.Add("total_servicios", typeof(int));
+
+            foreach (var p in servicios_NUP)
+            {
+                dt.Rows.Add(
+                    p.numero_contrato,
+                    p.fecha_contrato,
+                    p.numero_comprobante,
+                    p.total_servicios
                     );
             }
 

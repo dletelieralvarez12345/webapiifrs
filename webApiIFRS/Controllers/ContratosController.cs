@@ -161,6 +161,7 @@ namespace webApiIFRS.Controllers
             DataTable dtIngresosDiferidosBovedasParaValidar = new DataTable();
             DataTable dtInteresPorDevInactivos = new DataTable();
             DataTable dtDerechosServicios = new DataTable();
+            DataTable dtServiciosNUP = new DataTable();
             DataTable dtFechaTerminoProducto = new DataTable();
             DataTable dtIngresosDiferidosBovedas = new DataTable(); 
             DataTable dtIngresosDiferidosSFT = new DataTable();
@@ -198,7 +199,8 @@ namespace webApiIFRS.Controllers
                 .Where(r => !contratosDuplicados.Contains(r.Field<string>("con_num_con")))
                 .CopyToDataTable();
 
-            dtDerechosServicios = await _connContext.ObtenerDerechosServiciosSinIva(2025); 
+            dtDerechosServicios = await _connContext.ObtenerDerechosServiciosSinIva(2025);
+            dtServiciosNUP = await _connContext.ObtenerDerechosServiciosNUP(2025); 
             
             var derechosServiciosPorContrato = dtDerechosServicios
                 .AsEnumerable()
@@ -207,6 +209,15 @@ namespace webApiIFRS.Controllers
                     g => g.Key,
                     g => g.Sum(r => Convert.ToDecimal(r["total_serv_der_con_iva"]))
                 );
+
+            var serviciosNup = dtServiciosNUP
+                .AsEnumerable()
+                .GroupBy(r => r.Field<string>("numero_contrato"))
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.First().Field<int>("total_servicios")
+                )
+                .ToList(); 
 
             if (!dtContratos.Columns.Contains("con_derechos_servicios_con_iva"))
             {
@@ -227,7 +238,48 @@ namespace webApiIFRS.Controllers
                 }
             }
 
-            if(!dtContratos.Columns.Contains("con_fecha_termino_producto"))
+            /*SERVICIOS DE NICHOS UPGRADE SEGUN NUMERO CONTRATO, NUMERO COMPROBANTE*/
+            int? ParseInt(object v)
+            {
+                if (v == null || v == DBNull.Value) return null;
+                var s = v.ToString().Trim();
+                return int.TryParse(s, out var n) ? n : (int?)null;
+            }
+
+            var serviciosNupDict = dtServiciosNUP.AsEnumerable()
+                .Select(r => new
+                {
+                    NumeroContrato = r["numero_contrato"]?.ToString()?.Trim(),
+                    NumeroComprobante = ParseInt(r["numero_comprobante"]),
+                    TotalServicios = ParseInt(r["total_servicios"])
+                })
+                .Where(x => x.NumeroContrato != null && x.NumeroComprobante.HasValue)
+                .GroupBy(x => (x.NumeroContrato, x.NumeroComprobante.Value))
+                .ToDictionary(g => g.Key, g => g.First().TotalServicios);
+            
+
+            //agrega al dtContratos el valor servicio segun numero contrato y comprobante 
+            foreach (DataRow row in dtContratos.Rows)
+            {
+                string numeroContrato = row["con_num_con"].ToString();
+                int numeroComprobante = Convert.ToInt32(row["con_num_comprobante"]);
+                int tipoIngreso = Convert.ToInt32(row["con_id_tipo_ingreso"]);
+
+                if (tipoIngreso == 4)
+                {
+                    if (serviciosNupDict.TryGetValue((numeroContrato, numeroComprobante), out var totalServicios))
+                    {
+                        row["con_derechos_servicios_con_iva"] = totalServicios;
+                    }
+                    else
+                    {
+                        row["con_derechos_servicios_con_iva"] = 0;
+                    }
+                }
+            }
+
+
+            if (!dtContratos.Columns.Contains("con_fecha_termino_producto"))
             {
                 dtContratos.Columns.Add("con_fecha_termino_producto", typeof(DateTime)); 
             }
@@ -255,6 +307,11 @@ namespace webApiIFRS.Controllers
                 decimal precioBase = row.Field<decimal>("con_precio_base");     
                 decimal totalCredito = row.Field<decimal>("con_total_credito");
                 int tipoIngreso = row.Field<int>("con_id_tipo_ingreso");
+                decimal serviciosNUP = 0; 
+                if (tipoIngreso == 4)
+                {
+                    serviciosNUP = row.Field<decimal>("con_derechos_servicios_con_iva");                    
+                }
 
                 // derechos por contrato (si no hay, 0m)
                 decimal totalDerechos = 0m;
@@ -273,7 +330,7 @@ namespace webApiIFRS.Controllers
                     totalVenta += totalDerechos;
                     pie = totalVenta;
                     precioBaseMenosDerechos = totalVenta - totalDerechos;
-                }
+                }                
                 else
                 {
                     // precio base neto de derechos (si precioBase original incluye derechos)
@@ -291,7 +348,15 @@ namespace webApiIFRS.Controllers
                 }
 
                 // setea resultados en la misma fila
-                row["con_derechos_servicios_con_iva"] = totalDerechos;
+                if (tipoIngreso == 4)
+                {
+                    row["con_derechos_servicios_con_iva"] = serviciosNUP;
+                }
+                else
+                {
+                    row["con_derechos_servicios_con_iva"] = totalDerechos;
+                }
+
                 row["con_total_venta"] = totalVenta;
                 row["con_precio_base"] = precioBaseMenosDerechos;
                 row["con_pie"] = pie; 
