@@ -140,8 +140,8 @@ namespace webApiIFRS.Controllers
         }
 
         //metodo que genera tabla de amortización e ingresa en BD de Finanzas. 
-        [HttpPost("ProcesarContratos")]
-        public async Task<IActionResult> ProcesarContratos()
+        [HttpPost("ProcesarContratos/{anio}/{fechaDesde}/{fechaHasta}")]
+        public async Task<IActionResult> ProcesarContratos(int anio, string fechaDesde, string fechaHasta)
         {
             if (_connContext.Contrato == null)
             {
@@ -182,8 +182,8 @@ namespace webApiIFRS.Controllers
             double tasaInteres = 2.0 / 100;
 
             /*OBTENER TODOS LOS CONTRATOS*/
-            dtContratos = await _connContext.ListaIngresosDeVentasAllContratos(); 
-            dtContratosOriginal = await _connContext.ListaIngresosDeVentasAllContratos(); 
+            dtContratos = await _connContext.ListaIngresosDeVentasAllContratos(fechaDesde, fechaHasta); 
+            dtContratosOriginal = await _connContext.ListaIngresosDeVentasAllContratos(fechaDesde, fechaHasta); 
             /*CONTRATOS QUE SE DUPLICAN EN dtContratos*/
             var contratosDuplicados = dtContratos.AsEnumerable()
                 .GroupBy(r => r.Field<string>("con_num_con"))
@@ -199,8 +199,8 @@ namespace webApiIFRS.Controllers
                 .Where(r => !contratosDuplicados.Contains(r.Field<string>("con_num_con")))
                 .CopyToDataTable();
 
-            dtDerechosServicios = await _connContext.ObtenerDerechosServiciosSinIva(2025);
-            dtServiciosNUP = await _connContext.ObtenerDerechosServiciosNUP(2025); 
+            dtDerechosServicios = await _connContext.ObtenerDerechosServiciosSinIva(fechaDesde, fechaHasta);
+            dtServiciosNUP = await _connContext.ObtenerDerechosServiciosNUP(fechaDesde, fechaHasta); 
             
             var derechosServiciosPorContrato = dtDerechosServicios
                 .AsEnumerable()
@@ -505,7 +505,7 @@ namespace webApiIFRS.Controllers
                 try
                 {
                     contratosGuardados = await _connContext.SaveChangesAsync();
-                    dtContratos = await _connContext.ListaContratosPorAnio(2025); //.ListaIngresosDeVentasAllContratos();
+                    dtContratos = await _connContext.ListaContratosPorAnio(fechaDesde, fechaHasta); //.ListaIngresosDeVentasAllContratos();
                 }
                 catch (Exception ex)
                 {
@@ -514,12 +514,12 @@ namespace webApiIFRS.Controllers
             }
 
             /*VERIFICAR EL ESTADO DE LAS CUOTAS*/
-            dtPagosRealizados = await _connContext.ObtenerPagosRealizados(2025);
-            dtPagosRealizadosTerreno = await _connContext.ObtenerPagosRealizadosTerreno(2025);
-            dtModificaciones = await _connContext.ObtenerModificaciones(2025);
-            dtFechaPrimerVto = await _connContext.ObtenerFechaPrimerVctoBov(2025);
-            dtInteresPorDevParaValidar = await _connContext.ObtenerInteresPorDev_ListadoContratosYsusCuotas(2025);
-            dtIngresosDiferidosParaValidar = await _connContext.ObtenerIngresosDiferidosNichos_ListaCuotas(2025);
+            dtPagosRealizados = await _connContext.ObtenerPagosRealizados(anio);
+            dtPagosRealizadosTerreno = await _connContext.ObtenerPagosRealizadosTerreno(anio);
+            dtModificaciones = await _connContext.ObtenerModificaciones(anio);
+            dtFechaPrimerVto = await _connContext.ObtenerFechaPrimerVctoBov(anio);
+            dtInteresPorDevParaValidar = await _connContext.ObtenerInteresPorDev_ListadoContratosYsusCuotas(anio);
+            dtIngresosDiferidosParaValidar = await _connContext.ObtenerIngresosDiferidosNichos_ListaCuotas(anio);
 
             int correlativo_int_dev = 0;
 

@@ -73,11 +73,11 @@ namespace webApiIFRS.Models
         #endregion
 
         #region PROC.ALMACENADO QUE RETORNA TODOS LOS CONTRATOS DE UNA FECHA, ESTOS DATOS PROVIENEN DE TABLA CONTRATOS
-        public async Task<DataTable> ListaContratosPorAnio(int anio)
+        public async Task<DataTable> ListaContratosPorAnio(string fechaDesde, string fechaHasta)
         {
             DataTable dt = new DataTable();
             var contratos = await Contrato
-                .FromSqlInterpolated($"EXEC SP_IFRS_GETCONTRATOS {anio}")
+                .FromSqlInterpolated($"EXEC SP_IFRS_GETCONTRATOS {fechaDesde}, {fechaHasta}")
                 .ToListAsync();
 
             //dt.Columns.Add("con_id", typeof(int));
@@ -142,11 +142,11 @@ namespace webApiIFRS.Models
         #endregion
 
         #region PROC.ALMACENADO QUE RETORNA TODOS LOS CONTRATOS DE UNA FECHA, ESTOS DATOS PROVIENEN DE VISTA INGRESOS CONTABLES
-        public async Task<DataTable> ListaIngresosDeVentasAllContratos()
+        public async Task<DataTable> ListaIngresosDeVentasAllContratos(string fechaDesde, string fechaHasta)
         {
             DataTable dt = new DataTable();
             var contratos = await Set<ContratoDTO>()
-                .FromSqlRaw("EXEC SP_IFRS_INGRESOS_DE_VENTAS_ALL_CONTRATOS")
+                .FromSqlInterpolated($"EXEC SP_IFRS_INGRESOS_DE_VENTAS_ALL_CONTRATOS {fechaDesde}, {fechaHasta}")
                 .ToListAsync();
 
             //dt.Columns.Add("con_id", typeof(int));
@@ -439,12 +439,12 @@ namespace webApiIFRS.Models
         #endregion
 
         #region PROC.ALMACENADO QUE RETORNA DERECHOS Y SERVICIOS SIN IVA POR FECHA
-        public async Task<DataTable> ObtenerDerechosServiciosSinIva(int anio)
+        public async Task<DataTable> ObtenerDerechosServiciosSinIva(string fechaDesde, string fechaHasta)
         {
             DataTable dt = new DataTable();
 
             var derechosServicios = await DerechosServicios
-                .FromSqlInterpolated($"EXEC SP_IFRS_LISTA_DERECHOS_SERVICIOS_ALL_CONTRATOS {anio}")
+                .FromSqlInterpolated($"EXEC SP_IFRS_LISTA_DERECHOS_SERVICIOS_ALL_CONTRATOS {fechaDesde}, {fechaHasta}")
                 .ToListAsync();
 
             dt.Columns.Add("numero_contrato", typeof(string)); 
@@ -467,12 +467,12 @@ namespace webApiIFRS.Models
         #endregion
 
         #region PROC.ALMACENADO QUE RETORNA SERVICIOS NICHO UPGRADE POR FECHA
-        public async Task<DataTable> ObtenerDerechosServiciosNUP(int anio)
+        public async Task<DataTable> ObtenerDerechosServiciosNUP(string fechaDesde, string fechaHasta)
         {
             DataTable dt = new DataTable();
 
             var servicios_NUP = await serviciosNUP
-                .FromSqlInterpolated($"EXEC SP_IFRS_LISTA_SERVICIOS_CONTRATOS_NUP {anio}")
+                .FromSqlInterpolated($"EXEC SP_IFRS_LISTA_SERVICIOS_CONTRATOS_NUP {fechaDesde}, {fechaHasta}")
                 .ToListAsync();
 
             dt.Columns.Add("numero_contrato", typeof(string));
