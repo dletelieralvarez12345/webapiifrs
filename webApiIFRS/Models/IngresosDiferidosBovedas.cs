@@ -12,10 +12,11 @@ namespace webApiIFRS.Models
         public decimal ing_bov_precio_base { get; set; }        
         public int ing_bov_nro_cuota { get; set; }
         public decimal ing_bov_interes_diferido { get; set; }
-        public DateTime? ing_bov_fecha_devengo { get; set; }
+        public DateTime? ing_bov_fecha_vcto { get; set; }
         public DateTime? ing_bov_fecha_contab { get; set; }
         public int ing_bov_estado_contab { get; set; }
         public DateTime ing_bov_fecha { get; set; }
+        public int ing_bov_estado_cuota { get; set; }
 
         public IngresosDiferidosBovedas()
         {
@@ -24,10 +25,11 @@ namespace webApiIFRS.Models
             ing_bov_precio_base = 0;            
             ing_bov_nro_cuota = 0;
             ing_bov_interes_diferido = 0;
-            ing_bov_fecha_devengo = DateTime.Now;
+            ing_bov_fecha_vcto = DateTime.Now;
             ing_bov_fecha_contab = DateTime.Now;
             ing_bov_estado_contab = 0;
             ing_bov_fecha = DateTime.Now;
+            ing_bov_estado_cuota = 0;
         }
     }
 }

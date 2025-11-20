@@ -12,11 +12,11 @@ namespace webApiIFRS.Models
         public decimal ing_nup_precio_base { get; set; }
         public int ing_nup_nro_cuota { get; set; }
         public decimal ing_nup_interes_diferido { get; set; }
-        public DateTime? ing_nup_fecha_devengo { get; set; }
+        public DateTime? ing_nup_fecha_vcto { get; set; }
         public DateTime? ing_nup_fecha_contab { get; set; }
         public int ing_nup_estado_contab { get; set; }
         public DateTime ing_nup_fecha { get; set; }
-
+        public int ing_nup_estado_cuota { get; set; }
         public IngresosDiferidosNichosUpgrade()
         {
             ing_nup_id = 0;
@@ -24,10 +24,11 @@ namespace webApiIFRS.Models
             ing_nup_precio_base = 0;
             ing_nup_nro_cuota = 0;
             ing_nup_interes_diferido = 0;
-            ing_nup_fecha_devengo = DateTime.Now;
+            ing_nup_fecha_vcto = DateTime.Now;
             ing_nup_fecha_contab = DateTime.Now;
             ing_nup_estado_contab = 0;
             ing_nup_fecha = DateTime.Now;
+            ing_nup_estado_cuota = 0;
         }
     }
 }

@@ -518,15 +518,15 @@ namespace webApiIFRS.Controllers
             dtPagosRealizadosTerreno = await _connContext.ObtenerPagosRealizadosTerreno(anio);
             dtModificaciones = await _connContext.ObtenerModificaciones(anio);
             dtFechaPrimerVto = await _connContext.ObtenerFechaPrimerVctoBov(anio);
-            dtInteresPorDevParaValidar = await _connContext.ObtenerInteresPorDev_ListadoContratosYsusCuotas(anio);
-            dtIngresosDiferidosParaValidar = await _connContext.ObtenerIngresosDiferidosNichos_ListaCuotas(anio);
+            //dtInteresPorDevParaValidar = await _connContext.ObtenerInteresPorDev_ListadoContratosYsusCuotas(anio);
+            //dtIngresosDiferidosParaValidar = await _connContext.ObtenerIngresosDiferidosNichos_ListaCuotas(anio);
 
             int correlativo_int_dev = 0;
 
             //string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_0_ProcesaContratos.txt");
             string logPath = Path.Combine(carpetaLogs, $"2_ProcesaContratos_{DateTime.Now.ToShortDateString()}.txt");
 
-            using (StreamWriter logWriter = new StreamWriter(logPath, append: true))
+            using (StreamWriter logWriterProc = new StreamWriter(logPath, append: true))
             {
                 for (int i = 0; i < dtContratos.Rows.Count; i++)
                 {
@@ -605,8 +605,9 @@ namespace webApiIFRS.Controllers
                         dtIngresosDiferidos.Columns.Add("ing_precio_base", typeof(decimal));
                         dtIngresosDiferidos.Columns.Add("ing_a_diferir", typeof(decimal));
                         dtIngresosDiferidos.Columns.Add("ing_nro_cuota", typeof(int));
+                        dtIngresosDiferidos.Columns.Add("ing_estado_cuota", typeof(int));
                         dtIngresosDiferidos.Columns.Add("ing_interes_diferido", typeof(decimal));
-                        dtIngresosDiferidos.Columns.Add("ing_fecha_devengo", typeof(DateTime)); 
+                        dtIngresosDiferidos.Columns.Add("ing_fecha_vcto", typeof(DateTime)); 
                         dtIngresosDiferidos.Columns.Add("ing_fecha_contab", typeof(DateTime));
                         dtIngresosDiferidos.Columns.Add("ing_estado_contab", typeof(int));
                     }
@@ -617,8 +618,9 @@ namespace webApiIFRS.Controllers
                         dtIngresosDiferidosBovedas.Columns.Add("ing_bov_num_con", typeof(string));
                         dtIngresosDiferidosBovedas.Columns.Add("ing_bov_precio_base", typeof(decimal));                        
                         dtIngresosDiferidosBovedas.Columns.Add("ing_bov_nro_cuota", typeof(int));
+                        dtIngresosDiferidosBovedas.Columns.Add("ing_bov_estado_cuota", typeof(int));
                         dtIngresosDiferidosBovedas.Columns.Add("ing_bov_interes_diferido", typeof(decimal));
-                        dtIngresosDiferidosBovedas.Columns.Add("ing_bov_fecha_devengo", typeof(DateTime));
+                        dtIngresosDiferidosBovedas.Columns.Add("ing_bov_fecha_vcto", typeof(DateTime));
                         dtIngresosDiferidosBovedas.Columns.Add("ing_bov_fecha_contab", typeof(DateTime));
                         dtIngresosDiferidosBovedas.Columns.Add("ing_bov_estado_contab", typeof(int));
                     }
@@ -629,8 +631,9 @@ namespace webApiIFRS.Controllers
                         dtIngresosDiferidosSFT.Columns.Add("ing_sft_num_con", typeof(string));
                         dtIngresosDiferidosSFT.Columns.Add("ing_sft_precio_base", typeof(decimal));
                         dtIngresosDiferidosSFT.Columns.Add("ing_sft_nro_cuota", typeof(int));
+                        dtIngresosDiferidosSFT.Columns.Add("ing_sft_estado_cuota", typeof(int));
                         dtIngresosDiferidosSFT.Columns.Add("ing_sft_interes_diferido", typeof(decimal));
-                        dtIngresosDiferidosSFT.Columns.Add("ing_sft_fecha_devengo", typeof(DateTime));
+                        dtIngresosDiferidosSFT.Columns.Add("ing_sft_fecha_vcto", typeof(DateTime));
                         dtIngresosDiferidosSFT.Columns.Add("ing_sft_fecha_contab", typeof(DateTime));
                         dtIngresosDiferidosSFT.Columns.Add("ing_sft_estado_contab", typeof(int));
                     }
@@ -641,8 +644,9 @@ namespace webApiIFRS.Controllers
                         dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_num_con", typeof(string));
                         dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_precio_base", typeof(decimal));
                         dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_nro_cuota", typeof(int));
+                        dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_estado_cuota", typeof(int));
                         dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_interes_diferido", typeof(decimal));
-                        dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_fecha_devengo", typeof(DateTime));
+                        dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_fecha_vcto", typeof(DateTime));
                         dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_fecha_contab", typeof(DateTime));
                         dtIngresosDiferidosBovedasPremium.Columns.Add("ing_bovp_estado_contab", typeof(int));
                     }
@@ -653,8 +657,9 @@ namespace webApiIFRS.Controllers
                         dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_num_con", typeof(string));
                         dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_precio_base", typeof(decimal));
                         dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_nro_cuota", typeof(int));
+                        dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_estado_cuota", typeof(int));
                         dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_interes_diferido", typeof(decimal));
-                        dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_fecha_devengo", typeof(DateTime));
+                        dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_fecha_vcto", typeof(DateTime));
                         dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_fecha_contab", typeof(DateTime));
                         dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_estado_contab", typeof(int));
                     }
@@ -771,13 +776,13 @@ namespace webApiIFRS.Controllers
                             }
                             catch (Exception ex)
                             {
-                                logWriter_paso1.WriteLineAsync($"Falló --> Cuota n°: {numeroCuota} , Contrato: {dtContratos.Rows[i]["con_num_con"].ToString()},  Excepcion capturada: {ex.Message} - {DateTime.Now}");
+                                await logWriter_paso1.WriteLineAsync($"Falló --> Cuota n°: {numeroCuota} , Contrato: {dtContratos.Rows[i]["con_num_con"].ToString()},  Excepcion capturada: {ex.Message} - {DateTime.Now}");
                             }
                             finally
                             {
                                 if (dtInteresPorDev.Rows.Count == 0)
                                 {
-                                    logWriter_paso1.WriteLineAsync($"Datatable dtInteresPorDev tiene 0 registros - {DateTime.Now}");
+                                    await logWriter_paso1.WriteLineAsync($"Datatable dtInteresPorDev tiene 0 registros - {DateTime.Now}");
                                 }                                
                             }
                         }
@@ -801,7 +806,7 @@ namespace webApiIFRS.Controllers
                             {
                                 int cuota = i3 + 1;
                                 DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(cuota - 1); //fechaVtoOriginal.AddMonths(cuota - 1);
-                                DateTime fechaDevengo = fechaIngreso_.AddMonths(1);
+                                DateTime fechaVctoIng = fechaIngreso_.AddMonths(1);
 
                                 try
                                 {
@@ -819,7 +824,7 @@ namespace webApiIFRS.Controllers
                                             filaNuevaIng["ing_precio_base"] = precioBase;
                                             filaNuevaIng["ing_a_diferir"] = calculoIngresosADiferir;
                                             filaNuevaIng["ing_interes_diferido"] = interesDiferido;
-                                            filaNuevaIng["ing_fecha_devengo"] = fechaDevengo;
+                                            filaNuevaIng["ing_fecha_vcto"] = fechaVctoIng;
                                             filaNuevaIng["ing_fecha_contab"] = DBNull.Value;  // GetUltimoDiaDelMes(fechaVtoOriginal.AddMonths(cuota - 1));
                                             filaNuevaIng["ing_estado_contab"] = 0;
                                             dtIngresosDiferidos.Rows.Add(filaNuevaIng);
@@ -829,13 +834,13 @@ namespace webApiIFRS.Controllers
                                 }
                                 catch (Exception ex)
                                 {
-                                    logWriter_paso2.WriteLineAsync($"Falló for meses de arriendo, contrato: {numeroContrato}, cuota : {cuota} Excepcion capturada: {ex.Message} - {DateTime.Now}");
+                                    await logWriter_paso2.WriteLineAsync($"Falló for meses de arriendo, contrato: {numeroContrato}, cuota : {cuota} Excepcion capturada: {ex.Message} - {DateTime.Now}");
                                 }
                                 finally
                                 {
                                     if (dtIngresosDiferidos.Rows.Count == 0)
                                     {
-                                        logWriter_paso2.WriteLineAsync($"DataTable dtIngresosDiferidos no tiene registros - {DateTime.Now}");
+                                        await logWriter_paso2.WriteLineAsync($"DataTable dtIngresosDiferidos no tiene registros - {DateTime.Now}");
                                     }
                                 }
                             }
@@ -850,7 +855,7 @@ namespace webApiIFRS.Controllers
                         using (StreamWriter logWriter_paso2_2 = new StreamWriter(logPath_paso2_2, append: true))
                         {
                             DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(1); 
-                            DateTime fechaDevengo = fechaIngreso_;
+                            DateTime fechaVctoIngBov = fechaIngreso_;
 
                             try
                             {
@@ -863,7 +868,7 @@ namespace webApiIFRS.Controllers
                                         filaNuevaIng["ing_bov_nro_cuota"] = 1;
                                         filaNuevaIng["ing_bov_precio_base"] = precioBase;
                                         filaNuevaIng["ing_bov_interes_diferido"] = precioBase;
-                                        filaNuevaIng["ing_bov_fecha_devengo"] = fechaDevengo;
+                                        filaNuevaIng["ing_bov_fecha_vcto"] = fechaVctoIngBov;
                                         filaNuevaIng["ing_bov_fecha_contab"] = DBNull.Value;
                                         filaNuevaIng["ing_bov_estado_contab"] = 0;
                                         dtIngresosDiferidosBovedas.Rows.Add(filaNuevaIng);
@@ -872,13 +877,13 @@ namespace webApiIFRS.Controllers
                             }
                             catch (Exception ex)
                             {
-                                logWriter_paso2_2.WriteLineAsync($"Falló ingreso diferidos bovedas, contrato: {numeroContrato}, Excepcion capturada: {ex.Message} - {DateTime.Now}");
+                                await logWriter_paso2_2.WriteLineAsync($"Falló ingreso diferidos bovedas, contrato: {numeroContrato}, Excepcion capturada: {ex.Message} - {DateTime.Now}");
                             }
                             finally
                             {
                                 if (dtIngresosDiferidosBovedas.Rows.Count == 0)
                                 {
-                                    logWriter_paso2_2.WriteLineAsync($"DataTable dtIngresosDiferidosBovedas no tiene registros - {DateTime.Now}");
+                                    await logWriter_paso2_2.WriteLineAsync($"DataTable dtIngresosDiferidosBovedas no tiene registros - {DateTime.Now}");
                                 }
                             }
                         }
@@ -892,7 +897,7 @@ namespace webApiIFRS.Controllers
                         using (StreamWriter logWriter_paso2_3 = new StreamWriter(logPath_paso2_3, append: true))
                         {
                             DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(1);
-                            DateTime fechaDevengo = fechaIngreso_;
+                            DateTime fechaVctoIngSFT = fechaIngreso_;
 
                             try
                             {
@@ -905,7 +910,7 @@ namespace webApiIFRS.Controllers
                                         filaNuevaIng["ing_sft_nro_cuota"] = 1;
                                         filaNuevaIng["ing_sft_precio_base"] = precioBase;
                                         filaNuevaIng["ing_sft_interes_diferido"] = precioBase;
-                                        filaNuevaIng["ing_sft_fecha_devengo"] = fechaDevengo;
+                                        filaNuevaIng["ing_sft_fecha_vcto"] = fechaVctoIngSFT;
                                         filaNuevaIng["ing_sft_fecha_contab"] = DBNull.Value;
                                         filaNuevaIng["ing_sft_estado_contab"] = 0;
                                         dtIngresosDiferidosSFT.Rows.Add(filaNuevaIng);
@@ -914,13 +919,13 @@ namespace webApiIFRS.Controllers
                             }
                             catch (Exception ex)
                             {
-                                logWriter_paso2_3.WriteLineAsync($"Falló ingreso diferidos sft, contrato: {numeroContrato}, Excepcion capturada: {ex.Message} - {DateTime.Now}");
+                                await logWriter_paso2_3.WriteLineAsync($"Falló ingreso diferidos sft, contrato: {numeroContrato}, Excepcion capturada: {ex.Message} - {DateTime.Now}");
                             }
                             finally
                             {
                                 if (dtIngresosDiferidosBovedas.Rows.Count == 0)
                                 {
-                                    logWriter_paso2_3.WriteLineAsync($"DataTable dtIngresosDiferidosSFT no tiene registros - {DateTime.Now}");
+                                    await logWriter_paso2_3.WriteLineAsync($"DataTable dtIngresosDiferidosSFT no tiene registros - {DateTime.Now}");
                                 }
                             }
                         }
@@ -934,7 +939,7 @@ namespace webApiIFRS.Controllers
                         using (StreamWriter logWriter_paso2_4 = new StreamWriter(logPath_paso2_4, append: true))
                         {
                             DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(1);
-                            DateTime fechaDevengo = fechaIngreso_;
+                            DateTime fechaVctoIngBovp = fechaIngreso_;
 
                             try
                             {
@@ -947,7 +952,7 @@ namespace webApiIFRS.Controllers
                                         filaNuevaIng["ing_bovp_nro_cuota"] = 1;
                                         filaNuevaIng["ing_bovp_precio_base"] = precioBase;
                                         filaNuevaIng["ing_bovp_interes_diferido"] = precioBase;
-                                        filaNuevaIng["ing_bovp_fecha_devengo"] = fechaDevengo;
+                                        filaNuevaIng["ing_bovp_fecha_vcto"] = fechaVctoIngBovp;
                                         filaNuevaIng["ing_bovp_fecha_contab"] = DBNull.Value;
                                         filaNuevaIng["ing_bovp_estado_contab"] = 0;
                                         dtIngresosDiferidosBovedasPremium.Rows.Add(filaNuevaIng);
@@ -956,13 +961,13 @@ namespace webApiIFRS.Controllers
                             }
                             catch (Exception ex)
                             {
-                                logWriter_paso2_4.WriteLineAsync($"Falló ingreso diferidos bovedas premium, contrato: {numeroContrato}, Excepcion capturada: {ex.Message} - {DateTime.Now}");
+                                await logWriter_paso2_4.WriteLineAsync($"Falló ingreso diferidos bovedas premium, contrato: {numeroContrato}, Excepcion capturada: {ex.Message} - {DateTime.Now}");
                             }
                             finally
                             {
                                 if (dtIngresosDiferidosBovedas.Rows.Count == 0)
                                 {
-                                    logWriter_paso2_4.WriteLineAsync($"DataTable dtIngresosDiferidosBovedasPremium no tiene registros - {DateTime.Now}");
+                                    await logWriter_paso2_4.WriteLineAsync($"DataTable dtIngresosDiferidosBovedasPremium no tiene registros - {DateTime.Now}");
                                 }
                             }
                         }
@@ -976,7 +981,7 @@ namespace webApiIFRS.Controllers
                         using (StreamWriter logWriter_paso2_5 = new StreamWriter(logPath_paso2_5, append: true))
                         {
                             DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(1);
-                            DateTime fechaDevengo = fechaIngreso_;
+                            DateTime fechaVctoIngNup = fechaIngreso_;
 
                             try
                             {
@@ -989,7 +994,7 @@ namespace webApiIFRS.Controllers
                                         filaNuevaIng["ing_nup_nro_cuota"] = 1;
                                         filaNuevaIng["ing_nup_precio_base"] = precioBase;
                                         filaNuevaIng["ing_nup_interes_diferido"] = precioBase;
-                                        filaNuevaIng["ing_nup_fecha_devengo"] = fechaDevengo;
+                                        filaNuevaIng["ing_nup_fecha_vcto"] = fechaVctoIngNup;
                                         filaNuevaIng["ing_nup_fecha_contab"] = DBNull.Value;
                                         filaNuevaIng["ing_nup_estado_contab"] = 0;
                                         dtIngresosDiferidosNichosUpgrade.Rows.Add(filaNuevaIng);
@@ -998,13 +1003,13 @@ namespace webApiIFRS.Controllers
                             }
                             catch (Exception ex)
                             {
-                                logWriter_paso2_5.WriteLineAsync($"Falló ingreso diferidos nichos upgrade, contrato: {numeroContrato}, Excepcion capturada: {ex.Message} - {DateTime.Now}");
+                                await logWriter_paso2_5.WriteLineAsync($"Falló ingreso diferidos nichos upgrade, contrato: {numeroContrato}, Excepcion capturada: {ex.Message} - {DateTime.Now}");
                             }
                             finally
                             {
                                 if (dtIngresosDiferidosBovedas.Rows.Count == 0)
                                 {
-                                    logWriter_paso2_5.WriteLineAsync($"DataTable dtIngresosDiferidosNichosUpgrade no tiene registros - {DateTime.Now}");
+                                    await logWriter_paso2_5.WriteLineAsync($"DataTable dtIngresosDiferidosNichosUpgrade no tiene registros - {DateTime.Now}");
                                 }
                             }
                         }
@@ -1155,7 +1160,7 @@ namespace webApiIFRS.Controllers
                         }
                         catch (Exception ex)
                         {
-                            logWriterPaso3.WriteLineAsync($"Proceso que verifica modificaciones, resciliaciones o anulaciones presenta un problema en el contrato n°: {dtContratos.Rows[i]["con_num_con"].ToString()} - {DateTime.Now}");
+                            await logWriterPaso3.WriteLineAsync($"Proceso que verifica modificaciones, resciliaciones o anulaciones presenta un problema en el contrato n°: {dtContratos.Rows[i]["con_num_con"].ToString()} - {DateTime.Now}");
                         }
                     }
                 }
@@ -1260,7 +1265,7 @@ namespace webApiIFRS.Controllers
                     }
                     catch (Exception ex)
                     {
-                        logWriterPaso4.WriteLineAsync($"Paso 4, Elimina e Inactivo, Excepcion: {ex.Message} - {DateTime.Now}");
+                        await logWriterPaso4.WriteLineAsync($"Paso 4, Elimina e Inactivo, Excepcion: {ex.Message} - {DateTime.Now}");
                     }
                 }
 
@@ -1345,7 +1350,7 @@ namespace webApiIFRS.Controllers
                     }
                     catch (Exception ex)
                     {
-                        logWriterPaso5.WriteLineAsync($"Paso 5, actualiza los capitales de las modificaciones, Excepcion: {ex.Message} - {DateTime.Now}");
+                        await logWriterPaso5.WriteLineAsync($"Paso 5, actualiza los capitales de las modificaciones, Excepcion: {ex.Message} - {DateTime.Now}");
                     }
                 }
 
@@ -1376,7 +1381,7 @@ namespace webApiIFRS.Controllers
                 int cont = 0;
                 if (dtIngresosDiferidos.Rows.Count > 0) 
                 {
-                    cont = await Paso7_GuardaEnBDIngresosDiferidos(_connContext, dtIngresosDiferidos, dtIngresosDiferidosParaValidar); 
+                    cont = await Paso7_GuardaEnBDIngresosDiferidos(_connContext, dtIngresosDiferidos);//, dtIngresosDiferidosParaValidar); 
                 }
 
                 int contIngBov = 0; 
@@ -1550,7 +1555,7 @@ namespace webApiIFRS.Controllers
         #endregion
 
         #region GUARDA INGRESOS DIFERIDOS NICHOS, BOV, BOV PRE, NICHOS UPG, SFT Y GENERA LOGS
-        public async static Task<Int32> Paso7_GuardaEnBDIngresosDiferidos(ConnContext _connContext, DataTable dtIngresosDiferidos, DataTable dtIngresosDiferidosParaValidar)
+        public async static Task<Int32> Paso7_GuardaEnBDIngresosDiferidos(ConnContext _connContext, DataTable dtIngresosDiferidos)//, DataTable dtIngresosDiferidosParaValidar)
         {
             int countIngresosDif = 0;
 
@@ -1597,10 +1602,11 @@ namespace webApiIFRS.Controllers
                                 ing_a_diferir = GetDecimalValue(row, "ing_a_diferir"),
                                 ing_nro_cuota = GetIntValue(row, "ing_nro_cuota"),
                                 ing_interes_diferido = GetDecimalValue(row, "ing_interes_diferido"),
-                                ing_fecha_devengo = GetDateValue(row, "ing_fecha_devengo"),
+                                ing_fecha_vcto = GetDateValue(row, "ing_fecha_vcto"),
                                 ing_fecha_contab = GetDateValue(row, "ing_fecha_contab"),
                                 ing_estado_contab = GetIntValue(row, "ing_estado_contab"),
-                                ing_fecha = DateTime.Now
+                                ing_fecha = DateTime.Now, 
+                                ing_estado_cuota = 1
                             };
                             await _connContext.IngresosDiferidos.AddAsync(ingresos);
                             registrosInsertados++;
@@ -1655,7 +1661,7 @@ namespace webApiIFRS.Controllers
             //string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_8_GuardaEnBDIngresosDiferidosBovedas.txt");
             string logPath = Path.Combine(carpetaLogs, $"8_GuardaEnBDIngresosDiferidosBovedas.txt_{DateTime.Now.ToShortDateString()}.txt");
 
-            using (StreamWriter logWriter = new StreamWriter(logPath, append: true))
+            using (StreamWriter logWriter8 = new StreamWriter(logPath, append: true))
             {
                 int registrosInsertados = 0;
                 int registrosDuplicados = 0;
@@ -1685,10 +1691,11 @@ namespace webApiIFRS.Controllers
                                 ing_bov_precio_base = GetDecimalValue(row, "ing_bov_precio_base"),                    
                                 ing_bov_nro_cuota = GetIntValue(row, "ing_bov_nro_cuota"),
                                 ing_bov_interes_diferido = GetDecimalValue(row, "ing_bov_interes_diferido"),
-                                ing_bov_fecha_devengo = GetDateValue(row, "ing_bov_fecha_devengo"),
+                                ing_bov_fecha_vcto = GetDateValue(row, "ing_bov_fecha_vcto"),
                                 ing_bov_fecha_contab = GetDateValue(row, "ing_bov_fecha_contab"),
                                 ing_bov_estado_contab = GetIntValue(row, "ing_bov_estado_contab"),
-                                ing_bov_fecha = DateTime.Now
+                                ing_bov_fecha = DateTime.Now, 
+                                ing_bov_estado_cuota = 1
                             };
                             await _connContext.IngresosDiferidosBovedas.AddAsync(ingresosDifBov);
                             registrosInsertados++;
@@ -1696,14 +1703,14 @@ namespace webApiIFRS.Controllers
                         }
                         catch (Exception ex)
                         {
-                            await logWriter.WriteLineAsync($"Error al preparar datos de ingresos diferidos bovedas (numContrato: {GetStringValue(row, "ing_bov_num_con")}, numCuota: {GetIntValue(row, "ing_bov_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
+                            await logWriter8.WriteLineAsync($"Error al preparar datos de ingresos diferidos bovedas (numContrato: {GetStringValue(row, "ing_bov_num_con")}, numCuota: {GetIntValue(row, "ing_bov_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
                         }
                     }
                     else
                     {
                         registrosDuplicados++;
                         _ingresosDifBovedasExistentes = registrosDuplicados;
-                        await logWriter.WriteLineAsync(
+                        await logWriter8.WriteLineAsync(
                             $"Registro duplicado omitido en Ingresos Diferidos Bovedas (numContrato: {numCon}, numCuota: {nroCuota}) - {DateTime.Now}"
                         );
                     }
@@ -1715,13 +1722,13 @@ namespace webApiIFRS.Controllers
                     await _connContext.SaveChangesAsync();
                     _ingresosDifBovedasGuardados = registrosInsertados;
 
-                    await logWriter.WriteLineAsync(
+                    await logWriter8.WriteLineAsync(
                         $"Ingresos diferidos bovedas insertados: {registrosInsertados}, duplicados omitidos: {registrosDuplicados} - {DateTime.Now}"
                     );
                 }
                 catch (Exception ex)
                 {
-                    await logWriter.WriteLineAsync($"Paso 8, Excepcion: {ex.Message} - {DateTime.Now}");
+                    await logWriter8.WriteLineAsync($"Paso 8, Excepcion: {ex.Message} - {DateTime.Now}");
                 }
 
                 countIngresosDifBov = _ingresosGuardados;
@@ -1744,7 +1751,7 @@ namespace webApiIFRS.Controllers
             //string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_10_GuardaEnBDIngresosDiferidosSFT.txt");
             string logPath = Path.Combine(carpetaLogs, $"9_GuardaEnBDIngresosDiferidosSFT.txt_{DateTime.Now.ToShortDateString()}.txt");
 
-            using (StreamWriter logWriter = new StreamWriter(logPath, append: true))
+            using (StreamWriter logWriter9 = new StreamWriter(logPath, append: true))
             {
                 int registrosInsertados = 0;
                 int registrosDuplicados = 0;
@@ -1774,10 +1781,11 @@ namespace webApiIFRS.Controllers
                                 ing_sft_precio_base = GetDecimalValue(row, "ing_sft_precio_base"),
                                 ing_sft_nro_cuota = GetIntValue(row, "ing_sft_nro_cuota"),
                                 ing_sft_interes_diferido = GetDecimalValue(row, "ing_sft_interes_diferido"),
-                                ing_sft_fecha_devengo = GetDateValue(row, "ing_sft_fecha_devengo"),
+                                ing_sft_fecha_vcto = GetDateValue(row, "ing_sft_fecha_vcto"),
                                 ing_sft_fecha_contab = GetDateValue(row, "ing_sft_fecha_contab"),
                                 ing_sft_estado_contab = GetIntValue(row, "ing_sft_estado_contab"),
-                                ing_sft_fecha = DateTime.Now
+                                ing_sft_fecha = DateTime.Now, 
+                                ing_sft_estado_cuota = 1
                             };
                             await _connContext.IngresosDiferidosSFT.AddAsync(ingresosDifSFT);
                             registrosInsertados++;
@@ -1785,14 +1793,14 @@ namespace webApiIFRS.Controllers
                         }
                         catch (Exception ex)
                         {
-                            await logWriter.WriteLineAsync($"Error al preparar datos de ingresos diferidos SFT (numContrato: {GetStringValue(row, "ing_sft_num_con")}, numCuota: {GetIntValue(row, "ing_sft_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
+                            await logWriter9.WriteLineAsync($"Error al preparar datos de ingresos diferidos SFT (numContrato: {GetStringValue(row, "ing_sft_num_con")}, numCuota: {GetIntValue(row, "ing_sft_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
                         }
                     }
                     else
                     {
                         registrosDuplicados++;
                         _ingresosDifSFTExistentes = registrosDuplicados;
-                        await logWriter.WriteLineAsync(
+                        await logWriter9.WriteLineAsync(
                             $"Registro duplicado omitido en Ingresos Diferidos SFT (numContrato: {numCon}, numCuota: {nroCuota}) - {DateTime.Now}"
                         );
                     }
@@ -1804,13 +1812,13 @@ namespace webApiIFRS.Controllers
                     await _connContext.SaveChangesAsync();
                     _ingresosDifSFTGuardados = registrosInsertados;
 
-                    await logWriter.WriteLineAsync(
+                    await logWriter9.WriteLineAsync(
                         $"Ingresos diferidos sft insertados: {registrosInsertados}, duplicados omitidos: {registrosDuplicados} - {DateTime.Now}"
                     );
                 }
                 catch (Exception ex)
                 {
-                    await logWriter.WriteLineAsync($"Paso 9, Excepcion: {ex.Message} - {DateTime.Now}");
+                    await logWriter9.WriteLineAsync($"Paso 9, Excepcion: {ex.Message} - {DateTime.Now}");
                 }
 
                 countIngresosDifSFT = _ingresosGuardados;
@@ -1833,7 +1841,7 @@ namespace webApiIFRS.Controllers
             //string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_11_GuardaEnBDIngresosDiferidosBovedasPremium.txt");
             string logPath = Path.Combine(carpetaLogs, $"10_GuardaEnBDIngresosDiferidosBovedasPremium.txt_{DateTime.Now.ToShortDateString()}.txt");
 
-            using (StreamWriter logWriter = new StreamWriter(logPath, append: true))
+            using (StreamWriter logWriter10 = new StreamWriter(logPath, append: true))
             {
                 int registrosInsertados = 0;
                 int registrosDuplicados = 0;
@@ -1863,10 +1871,11 @@ namespace webApiIFRS.Controllers
                                 ing_bovp_precio_base = GetDecimalValue(row, "ing_bovp_precio_base"),
                                 ing_bovp_nro_cuota = GetIntValue(row, "ing_bovp_nro_cuota"),
                                 ing_bovp_interes_diferido = GetDecimalValue(row, "ing_bovp_interes_diferido"),
-                                ing_bovp_fecha_devengo = GetDateValue(row, "ing_bovp_fecha_devengo"),
+                                ing_bovp_fecha_vcto = GetDateValue(row, "ing_bovp_fecha_vcto"),
                                 ing_bovp_fecha_contab = GetDateValue(row, "ing_bovp_fecha_contab"),
                                 ing_bovp_estado_contab = GetIntValue(row, "ing_bovp_estado_contab"),
-                                ing_bovp_fecha = DateTime.Now
+                                ing_bovp_fecha = DateTime.Now, 
+                                ing_bovp_estado_cuota = 1
                             };
                             await _connContext.IngresosDiferidosBovedasPremium.AddAsync(ingresosDifBovedasPremium);
                             registrosInsertados++;
@@ -1874,14 +1883,14 @@ namespace webApiIFRS.Controllers
                         }
                         catch (Exception ex)
                         {
-                            await logWriter.WriteLineAsync($"Error al preparar datos de ingresos diferidos bovedas premium (numContrato: {GetStringValue(row, "ing_bovp_num_con")}, numCuota: {GetIntValue(row, "ing_bovp_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
+                            await logWriter10.WriteLineAsync($"Error al preparar datos de ingresos diferidos bovedas premium (numContrato: {GetStringValue(row, "ing_bovp_num_con")}, numCuota: {GetIntValue(row, "ing_bovp_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
                         }
                     }
                     else
                     {
                         registrosDuplicados++;
                         _ingresosDifBovedasPremiumExistentes = registrosDuplicados;
-                        await logWriter.WriteLineAsync(
+                        await logWriter10.WriteLineAsync(
                             $"Registro duplicado omitido en Ingresos Diferidos bovedas premium (numContrato: {numCon}, numCuota: {nroCuota}) - {DateTime.Now}"
                         );
                     }
@@ -1893,13 +1902,13 @@ namespace webApiIFRS.Controllers
                     await _connContext.SaveChangesAsync();
                     _ingresosDifBovedasPremiumGuardados = registrosInsertados;
 
-                    await logWriter.WriteLineAsync(
+                    await logWriter10.WriteLineAsync(
                         $"Ingresos diferidos bovedas premium insertados: {registrosInsertados}, duplicados omitidos: {registrosDuplicados} - {DateTime.Now}"
                     );
                 }
                 catch (Exception ex)
                 {
-                    await logWriter.WriteLineAsync($"Paso 11, Excepcion: {ex.Message} - {DateTime.Now}");
+                    await logWriter10.WriteLineAsync($"Paso 11, Excepcion: {ex.Message} - {DateTime.Now}");
                 }
 
                 countIngresosDifBOVP = _ingresosGuardados;
@@ -1922,7 +1931,7 @@ namespace webApiIFRS.Controllers
             //string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_11_GuardaEnBDIngresosDiferidosNichosUpgrade.txt");
             string logPath = Path.Combine(carpetaLogs, $"11_GuardaEnBDIngresosDiferidosNichosUpgrade.txt_{DateTime.Now.ToShortDateString()}.txt");
 
-            using (StreamWriter logWriter = new StreamWriter(logPath, append: true))
+            using (StreamWriter logWriter11 = new StreamWriter(logPath, append: true))
             {
                 int registrosInsertados = 0;
                 int registrosDuplicados = 0;
@@ -1952,10 +1961,11 @@ namespace webApiIFRS.Controllers
                                 ing_nup_precio_base = GetDecimalValue(row, "ing_nup_precio_base"),
                                 ing_nup_nro_cuota = GetIntValue(row, "ing_nup_nro_cuota"),
                                 ing_nup_interes_diferido = GetDecimalValue(row, "ing_nup_interes_diferido"),
-                                ing_nup_fecha_devengo = GetDateValue(row, "ing_nup_fecha_devengo"),
+                                ing_nup_fecha_vcto = GetDateValue(row, "ing_nup_fecha_vcto"),
                                 ing_nup_fecha_contab = GetDateValue(row, "ing_nup_fecha_contab"),
                                 ing_nup_estado_contab = GetIntValue(row, "ing_nup_estado_contab"),
-                                ing_nup_fecha = DateTime.Now
+                                ing_nup_fecha = DateTime.Now, 
+                                ing_nup_estado_cuota = 1
                             };
                             await _connContext.IngresosDiferidosNichosUpgrade.AddAsync(ingresosDifNichosUpgrade);
                             registrosInsertados++;
@@ -1963,14 +1973,14 @@ namespace webApiIFRS.Controllers
                         }
                         catch (Exception ex)
                         {
-                            await logWriter.WriteLineAsync($"Error al preparar datos de ingresos diferidos nichos upgrade (numContrato: {GetStringValue(row, "ing_nup_num_con")}, numCuota: {GetIntValue(row, "ing_nup_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
+                            await logWriter11.WriteLineAsync($"Error al preparar datos de ingresos diferidos nichos upgrade (numContrato: {GetStringValue(row, "ing_nup_num_con")}, numCuota: {GetIntValue(row, "ing_nup_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
                         }
                     }
                     else
                     {
                         registrosDuplicados++;
                         _ingresosDifNichoUpgradeExistentes = registrosDuplicados;
-                        await logWriter.WriteLineAsync(
+                        await logWriter11.WriteLineAsync(
                             $"Registro duplicado omitido en Ingresos Diferidos Nichos Upgrade (numContrato: {numCon}, numCuota: {nroCuota}) - {DateTime.Now}"
                         );
                     }
@@ -1982,13 +1992,13 @@ namespace webApiIFRS.Controllers
                     await _connContext.SaveChangesAsync();
                     _ingresosDifNichoUpgradeGuardados = registrosInsertados;
 
-                    await logWriter.WriteLineAsync(
+                    await logWriter11.WriteLineAsync(
                         $"Ingresos diferidos nichos upgrade insertados: {registrosInsertados}, duplicados omitidos: {registrosDuplicados} - {DateTime.Now}"
                     );
                 }
                 catch (Exception ex)
                 {
-                    await logWriter.WriteLineAsync($"Paso 11, Excepcion: {ex.Message} - {DateTime.Now}");
+                    await logWriter11.WriteLineAsync($"Paso 11, Excepcion: {ex.Message} - {DateTime.Now}");
                 }
 
                 countIngresosDifNUP = _ingresosGuardados;

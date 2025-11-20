@@ -104,7 +104,7 @@ namespace webApiIFRS.Models
             dt.Columns.Add("con_num_repactaciones", typeof(int));   
             dt.Columns.Add("con_anos_arriendo", typeof(int));
             dt.Columns.Add("con_derechos_servicios_con_iva", typeof(decimal));
-            dt.Columns.Add("con_fecha_termino_producto", typeof(DateTime)); 
+            dt.Columns.Add("con_fecha_termino_producto", typeof(DateTime));
 
             foreach (var x in contratos)
             {
@@ -414,8 +414,9 @@ namespace webApiIFRS.Models
             dt.Columns.Add("ing_precio_base", typeof(decimal));
             dt.Columns.Add("ing_a_diferir", typeof(decimal));
             dt.Columns.Add("ing_nro_cuota", typeof(int));
+            dt.Columns.Add("ing_estado_cuota", typeof(int));
             dt.Columns.Add("ing_interes_diferido", typeof(decimal));
-            dt.Columns.Add("ing_fecha_devengo", typeof(DateTime));
+            dt.Columns.Add("ing_fecha_vcto", typeof(DateTime));
             dt.Columns.Add("ing_fecha_contab", typeof(DateTime));
             dt.Columns.Add("ing_estado_contab", typeof(int));
 
@@ -427,8 +428,9 @@ namespace webApiIFRS.Models
                     p.ing_precio_base,
                     p.ing_a_diferir,
                     p.ing_nro_cuota,
+                    p.ing_estado_cuota, 
                     p.ing_interes_diferido,
-                    p.ing_fecha_devengo,
+                    p.ing_fecha_vcto,
                     (object?)p.ing_fecha_contab ?? DBNull.Value,
                     p.ing_estado_contab
                 );

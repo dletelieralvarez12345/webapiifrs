@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Microsoft.EntityFrameworkCore.Query.Internal;
+using System.ComponentModel.DataAnnotations;
 
 namespace webApiIFRS.Models
 {
@@ -30,7 +31,6 @@ namespace webApiIFRS.Models
         public int? con_anos_arriendo { get; set; }
         public decimal? con_derechos_servicios_con_iva { get; set; } 
         public DateTime? con_fecha_termino_producto { get; set; }
-
         public Contrato()
         {
             con_id = 0;
