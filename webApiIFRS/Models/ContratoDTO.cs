@@ -17,6 +17,7 @@
         public int? con_capacidad_sepultura { get; set; }
         public string con_tipo_compra { get; set; }
         public string con_terminos_pago { get; set; }
+        public int con_id_cajero { get; set; }
         public string con_nombre_cajero { get; set; }
         public DateTime? con_fecha_primer_vcto_ori { get; set; }
         public int? con_tipo_movimiento { get; set; }
@@ -44,6 +45,7 @@
             con_capacidad_sepultura = 0;
             con_tipo_compra = string.Empty;
             con_terminos_pago = string.Empty;
+            con_id_cajero = 0; 
             con_nombre_cajero = string.Empty;
             con_fecha_primer_vcto_ori = DateTime.Now;
             con_tipo_movimiento = 0;

@@ -38,6 +38,8 @@ namespace webApiIFRS.Controllers
         public static int _ingresosDifBovedasPremiumGuardados = 0;
         public static int _ingresosDifNichoUpgradeExistentes = 0;
         public static int _ingresosDifNichoUpgradeGuardados = 0;
+        public static int _ingresosDifPatiosExistentes = 0;
+        public static int _ingresosDifPatiosGuardados = 0;
 
         public ContratosController(ConnContext connContext, 
             ConnContextCTACTE connCtaCte, 
@@ -170,6 +172,8 @@ namespace webApiIFRS.Controllers
             DataTable dtIngresosDiferidosBovedasPremiumParaValidar = new DataTable();
             DataTable dtIngresosDiferidosNichosUpgrade = new DataTable();
             DataTable dtIngresosDiferidosNichosUpgradeParaValidar = new DataTable();
+            DataTable dtIngresosDiferidosPatios = new DataTable();
+            DataTable dtIngresosDiferidosPatiosParaValidar =new DataTable();
 
             DateTime fechaVto = new DateTime();
             DateTime fechaVtoOriginal = new DateTime();
@@ -304,9 +308,11 @@ namespace webApiIFRS.Controllers
                 decimal pie = row.Field<decimal>("con_pie");
                 int cuotas = row.Field<int>("con_cuotas_pactadas");
                 decimal valorCuota = row.Field<decimal>("con_valor_cuota_pactada");
-                decimal precioBase = row.Field<decimal>("con_precio_base");     
+                decimal precioBase = row.Field<decimal>("con_precio_base");                
                 decimal totalCredito = row.Field<decimal>("con_total_credito");
                 int tipoIngreso = row.Field<int>("con_id_tipo_ingreso");
+                decimal totalVentaPatios = row.Field<decimal>("con_total_venta");
+
                 decimal serviciosNUP = 0; 
                 if (tipoIngreso == 4)
                 {
@@ -321,7 +327,16 @@ namespace webApiIFRS.Controllers
                 }
 
                 // total venta 
-                decimal totalVenta = pie + (cuotas * valorCuota);
+                decimal totalVenta = 0; 
+                if (tipoIngreso == 14)
+                {
+                    totalVenta = totalVentaPatios; 
+                }
+                else
+                {
+                    totalVenta = pie + (cuotas * valorCuota);
+                }
+
                 decimal precioBaseMenosDerechos = 0;
 
                 // si es Ingreso de Nichos (1), cuotas=0 y totalCredito=0 => contado: suma derechos
@@ -330,7 +345,14 @@ namespace webApiIFRS.Controllers
                     totalVenta += totalDerechos;
                     pie = totalVenta;
                     precioBaseMenosDerechos = totalVenta - totalDerechos;
-                }                
+                }
+                else // si es Ingreso de Patios (14), cuotas=0 y totalCredito=0 => contado: suma derechos
+                if (tipoIngreso == 14 && numContrato == numComprobante.ToString() && cuotas == 0 && totalCredito == 0)
+                {
+                    totalVenta += totalDerechos;
+                    pie = totalVenta;
+                    precioBaseMenosDerechos = totalVenta - totalDerechos;
+                }
                 else
                 {
                     // precio base neto de derechos (si precioBase original incluye derechos)
@@ -338,7 +360,7 @@ namespace webApiIFRS.Controllers
                 }
 
                 /*AGREGO COLUMNA FECHA DE TERMINO DE PRODUCTO*/
-                if(!string.IsNullOrEmpty(numContrato) && fechasTerminoProductoPorContrato.TryGetValue(numContrato, out DateTime fechaTermino))
+                if (!string.IsNullOrEmpty(numContrato) && fechasTerminoProductoPorContrato.TryGetValue(numContrato, out DateTime fechaTermino))
                 {
                     row["con_fecha_termino_producto"] = fechaTermino;
                 }
@@ -397,6 +419,13 @@ namespace webApiIFRS.Controllers
                     pie = totalVenta;
                 }
 
+                //si tipo de ingreso es Ingreso de Patios y cuotas es igual a 0 y total credito = 0 es pago al CONTADO. 
+                if (tipoIngreso == 14 && con == numeroComprobante && cuotasPactadas == 0 && totalCredito == 0)
+                {
+                    totalVenta += totalDerechos;
+                    pie = totalVenta;
+                }
+
                 /*AGREGO COLUMNA FECHA DE TERMINO DE PRODUCTO*/
                 if (!string.IsNullOrEmpty(busqueda[0].ToString()) && fechasTerminoProductoPorContrato.TryGetValue(busqueda[0].ToString(), out DateTime fechaTermino))
                 {
@@ -422,13 +451,14 @@ namespace webApiIFRS.Controllers
                 filaNew["con_capacidad_sepultura"] = busqueda[12].ToString();
                 filaNew["con_tipo_compra"] = busqueda[13].ToString();
                 filaNew["con_terminos_pago"] = busqueda[14].ToString();
-                filaNew["con_nombre_cajero"] = busqueda[15].ToString();
-                filaNew["con_fecha_primer_vcto_ori"] = busqueda[16].ToString();
-                filaNew["con_tipo_movimiento"] = busqueda[17].ToString();
-                filaNew["con_cuotas_pactadas_mod"] = busqueda[18].ToString();
-                filaNew["con_estado_contrato"] = busqueda[19].ToString();
-                filaNew["con_num_repactaciones"] = busqueda[20].ToString();
-                filaNew["con_anos_arriendo"] = busqueda[21].ToString();
+                filaNew["con_id_cajero"] = busqueda[15].ToString();
+                filaNew["con_nombre_cajero"] = busqueda[16].ToString();
+                filaNew["con_fecha_primer_vcto_ori"] = busqueda[17].ToString();
+                filaNew["con_tipo_movimiento"] = busqueda[18].ToString();
+                filaNew["con_cuotas_pactadas_mod"] = busqueda[19].ToString();
+                filaNew["con_estado_contrato"] = busqueda[20].ToString();
+                filaNew["con_num_repactaciones"] = busqueda[21].ToString();
+                filaNew["con_anos_arriendo"] = busqueda[22].ToString();
                 dtContratos.Rows.Add(filaNew);                
             }
 
@@ -475,6 +505,7 @@ namespace webApiIFRS.Controllers
                                     con_capacidad_sepultura = GetIntValue(row, "con_capacidad_sepultura"),
                                     con_tipo_compra = GetStringValue(row, "con_tipo_compra"),
                                     con_terminos_pago = GetStringValue(row, "con_terminos_pago"),
+                                    con_id_cajero = GetIntValue(row, "con_id_cajero"),
                                     con_nombre_cajero = GetStringValue(row, "con_nombre_cajero"),
                                     con_fecha_primer_vcto_ori = GetDateValue(row, "con_fecha_primer_vcto_ori"),
                                     con_tipo_movimiento = GetIntValue(row, "con_tipo_movimiento"),
@@ -560,22 +591,31 @@ namespace webApiIFRS.Controllers
                     decimal precioBase = decimal.Parse(dtContratos.Rows[i]["con_precio_base"].ToString());
 
                     /*****TEMPORALIDAD NICHOS****/
-                       /*
-                        codigo 1 = 5 años
-                        2 = 10 años
-                        3 = perpetuo
-                        4 = 2 años
-                        5 = 1 año
-                        6 = doble perpetuo 
-                        7 = 50 años
-                        8 = 3 años                        
-                        */
+                    /*
+                     codigo 1 = 5 años
+                     2 = 10 años
+                     3 = perpetuo
+                     4 = 2 años
+                     5 = 1 año
+                     6 = doble perpetuo 
+                     7 = 50 años
+                     8 = 3 años                        
+                     */
                     /****************************/
 
-                    if (int.Parse(dtContratos.Rows[i]["con_id_tipo_ingreso"].ToString()) == 1 && int.Parse(dtContratos.Rows[i]["con_anos_arriendo"].ToString()) > 0)
+                    var tipoIngreso = GetIntValue(dtContratos.Rows[i], "con_id_tipo_ingreso");
+                    var anosArriendo = GetIntValue(dtContratos.Rows[i], "con_anos_arriendo");
+
+                    if (tipoIngreso == 1 && anosArriendo > 0)
                     {
                         mesesArriendo = Convert.ToInt32(dtContratos.Rows[i]["con_anos_arriendo"]) * 12;                        
                         interesDiferido = calculoIngresosADiferir / mesesArriendo; 
+                    }
+                    /*INGRESO DIFERIDO PARA PATIOS*/
+                    if (tipoIngreso == 14 && anosArriendo > 0)
+                    {
+                        mesesArriendo = Convert.ToInt32(dtContratos.Rows[i]["con_anos_arriendo"]) * 12;
+                        interesDiferido = precioBase / mesesArriendo;
                     }
 
                     if (dtInteresPorDev.Columns.Count == 0)
@@ -663,19 +703,34 @@ namespace webApiIFRS.Controllers
                         dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_fecha_contab", typeof(DateTime));
                         dtIngresosDiferidosNichosUpgrade.Columns.Add("ing_nup_estado_contab", typeof(int));
                     }
-                    
+
+                    if (dtIngresosDiferidosPatios.Columns.Count == 0)
+                    {
+                        dtIngresosDiferidosPatios.Columns.Add("ID", typeof(int));
+                        dtIngresosDiferidosPatios.Columns.Add("ing_pat_num_con", typeof(string));
+                        dtIngresosDiferidosPatios.Columns.Add("ing_pat_precio_base", typeof(decimal));
+                        dtIngresosDiferidosPatios.Columns.Add("ing_pat_a_diferir", typeof(decimal));
+                        dtIngresosDiferidosPatios.Columns.Add("ing_pat_nro_cuota", typeof(int));
+                        dtIngresosDiferidosPatios.Columns.Add("ing_pat_estado_cuota", typeof(int));
+                        dtIngresosDiferidosPatios.Columns.Add("ing_pat_interes_diferido", typeof(decimal));
+                        dtIngresosDiferidosPatios.Columns.Add("ing_pat_fecha_vcto", typeof(DateTime));
+                        dtIngresosDiferidosPatios.Columns.Add("ing_pat_fecha_contab", typeof(DateTime));
+                        dtIngresosDiferidosPatios.Columns.Add("ing_pat_estado_contab", typeof(int));
+                    }
 
                     correlativo_int_dev++;
 
                     /*TOMO SOLO LOS CONTRATOS CON CUOTAS MAYOR A CERO PARA GUARDAR LOS INTERESES POR DEVENGAR*/
-                    DataTable dtContratosEnCuotas = new DataTable();
-                    dtContratosEnCuotas = dtContratos.AsEnumerable()
-                        .Where(row => row.Field<int>("con_cuotas_pactadas") > 0)
-                        .CopyToDataTable();
+                    //DataTable dtContratosEnCuotas = new DataTable();
 
+                    //if (dtContratosEnCuotas.Rows.Count > 0)
+                    //{
+                    //    dtContratosEnCuotas = dtContratos.AsEnumerable()
+                    //        .Where(row => row.Field<int>("con_cuotas_pactadas") > 0)
+                    //        .CopyToDataTable();
+                    //}
                     string logPath_paso1 = Path.Combine(carpetaLogs, $"3_cargaDTInteresesPorDevengar_{DateTime.Now.ToShortDateString()}.txt");
-                    //string logPath_paso1 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_1_cargaDTInteresesPorDevengar.txt");
-
+                   
                     using (StreamWriter logWriter_paso1 = new StreamWriter(logPath_paso1, append: true))
                     {                        
                         for (int i2 = 0; i2 < Convert.ToInt32(dtContratos.Rows[i]["con_cuotas_pactadas"].ToString()); i2++)
@@ -789,7 +844,7 @@ namespace webApiIFRS.Controllers
                     }
 
                     /*INGRESOS DIFERIDOS DE CONTRATOS ARRIENDO NICHOS*/
-                    int tipoIngreso = int.Parse(dtContratos.Rows[i]["con_id_tipo_ingreso"].ToString());
+                    //int tipoIngreso = int.Parse(dtContratos.Rows[i]["con_id_tipo_ingreso"].ToString());
                     string numeroContrato = dtContratos.Rows[i]["con_num_con"].ToString();
                     /*FECHA DE TERMINO DE PRODUCTO*/
                     DateTime? fechaTerminoProducto = dtContratos.Rows[i]["con_fecha_termino_producto"] == DBNull.Value
@@ -845,7 +900,7 @@ namespace webApiIFRS.Controllers
                                 }
                             }
                         }
-                    }
+                    }                    
                     /*VENTA BOVEDAS*/
                     else if (tipoIngreso == 2)
                     {
@@ -854,7 +909,7 @@ namespace webApiIFRS.Controllers
                         //string logPath_paso2_2 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_2.2_cargaIngresosDiferidosBovedas.txt");
                         using (StreamWriter logWriter_paso2_2 = new StreamWriter(logPath_paso2_2, append: true))
                         {
-                            DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(1); 
+                            DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(1);
                             DateTime fechaVctoIngBov = fechaIngreso_;
 
                             try
@@ -1013,7 +1068,57 @@ namespace webApiIFRS.Controllers
                                 }
                             }
                         }
-                    }                    
+                    }
+                    else /*INGRESO PATIOS*/
+                    if (tipoIngreso == 14)
+                    {
+                        string logPath_paso14 = Path.Combine(carpetaLogs, $"4.14_cargaDTMesesArriendo_{DateTime.Now.ToShortDateString()}.txt");                        
+                        using (StreamWriter logWriter_paso14 = new StreamWriter(logPath_paso14, append: true))
+                        {
+                            for (int i3 = 0; i3 < mesesArriendo; i3++)
+                            {
+                                int cuota = i3 + 1;
+                                DateTime fechaIngreso_ = fechaIngresoContrato.Date.AddMonths(cuota - 1); //fechaVtoOriginal.AddMonths(cuota - 1);
+                                DateTime fechaVctoIng = fechaIngreso_.AddMonths(1);
+
+                                try
+                                {
+                                    bool existeCuota = dtIngresosDiferidosPatios.AsEnumerable().Any(row =>
+                                    row["ing_pat_num_con"].ToString() == numeroContrato &&
+                                    row["ing_pat_nro_cuota"].ToString() == cuota.ToString());
+
+                                    if (!existeCuota)
+                                    {
+                                        if (interesDiferido > 0)
+                                        {
+                                            DataRow filaNuevaIng = dtIngresosDiferidosPatios.NewRow();
+                                            filaNuevaIng["ing_pat_num_con"] = numeroContrato;
+                                            filaNuevaIng["ing_pat_nro_cuota"] = cuota;
+                                            filaNuevaIng["ing_pat_precio_base"] = precioBase;
+                                            filaNuevaIng["ing_pat_a_diferir"] = precioBase; //calculoIngresosADiferir;
+                                            filaNuevaIng["ing_pat_interes_diferido"] = interesDiferido;
+                                            filaNuevaIng["ing_pat_fecha_vcto"] = fechaVctoIng;
+                                            filaNuevaIng["ing_pat_fecha_contab"] = DBNull.Value;  // GetUltimoDiaDelMes(fechaVtoOriginal.AddMonths(cuota - 1));
+                                            filaNuevaIng["ing_pat_estado_contab"] = 0;
+                                            dtIngresosDiferidosPatios.Rows.Add(filaNuevaIng);
+                                        }
+
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    await logWriter_paso14.WriteLineAsync($"Falló for meses de arriendo, contrato: {numeroContrato}, cuota : {cuota} Excepcion capturada: {ex.Message} - {DateTime.Now}");
+                                }
+                                finally
+                                {
+                                    if (dtIngresosDiferidosPatios.Rows.Count == 0)
+                                    {
+                                        await logWriter_paso14.WriteLineAsync($"DataTable dtIngresosDiferidosPatios no tiene registros - {DateTime.Now}");
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 
                 correlativo_int_dev++;
@@ -1407,9 +1512,16 @@ namespace webApiIFRS.Controllers
                 {
                     contIngNichoUpg = await Paso11_GuardaEnBDIngresosDiferidosNichoUpgrade(_connContext, dtIngresosDiferidosNichosUpgrade, dtIngresosDiferidosNichosUpgradeParaValidar);
                 }
+
+                int contIngPatios = 0;
+                if (dtIngresosDiferidosPatios .Rows.Count > 0)
+                {
+                    contIngPatios = await Paso12_GuardaEnBDIngresosDiferidosPatios(_connContext, dtIngresosDiferidosPatios, dtIngresosDiferidosPatiosParaValidar);
+                }
+
                 /****************************************************************************************/
 
-            return Ok(new
+                return Ok(new
                 {
                     Contratos_Esperados = dtContratos.Rows.Count,
                     Contratos_Guardados = contratosGuardados,
@@ -1437,7 +1549,11 @@ namespace webApiIFRS.Controllers
 
                     IngresosDiferidosNichoUpgrade_Esperados = dtIngresosDiferidosNichosUpgrade.Rows.Count,
                     IngresosDiferidosNichoUpgrade_Insertados = _ingresosDifNichoUpgradeGuardados,
-                    IngresosDiferidosNichoUpgrade_YaExisten = _ingresosDifNichoUpgradeExistentes 
+                    IngresosDiferidosNichoUpgrade_YaExisten = _ingresosDifNichoUpgradeExistentes,
+
+                    IngresosDiferidosPatios_Esperados = dtIngresosDiferidosPatios.Rows.Count,
+                    IngresosDiferidosPatios_Insertados = _ingresosDifPatiosGuardados, 
+                    IngresosDiferidosPatios_YaExisten = _ingresosDifPatiosExistentes
                 });    
             }
         }
@@ -1554,7 +1670,7 @@ namespace webApiIFRS.Controllers
         }
         #endregion
 
-        #region GUARDA INGRESOS DIFERIDOS NICHOS, BOV, BOV PRE, NICHOS UPG, SFT Y GENERA LOGS
+        #region GUARDA INGRESOS DIFERIDOS NICHOS, BOV, BOV PRE, NICHOS UPG, SFT, PATIOS Y GENERA LOGS
         public async static Task<Int32> Paso7_GuardaEnBDIngresosDiferidos(ConnContext _connContext, DataTable dtIngresosDiferidos)//, DataTable dtIngresosDiferidosParaValidar)
         {
             int countIngresosDif = 0;
@@ -1908,7 +2024,7 @@ namespace webApiIFRS.Controllers
                 }
                 catch (Exception ex)
                 {
-                    await logWriter10.WriteLineAsync($"Paso 11, Excepcion: {ex.Message} - {DateTime.Now}");
+                    await logWriter10.WriteLineAsync($"Paso 10, Excepcion: {ex.Message} - {DateTime.Now}");
                 }
 
                 countIngresosDifBOVP = _ingresosGuardados;
@@ -2005,6 +2121,97 @@ namespace webApiIFRS.Controllers
                 return countIngresosDifNUP;
             }
         }
+        public async static Task<Int32> Paso12_GuardaEnBDIngresosDiferidosPatios(ConnContext _connContext, DataTable dtIngresosDiferidosPatios, DataTable dtIngresosDiferidosPatiosParaValidar)
+        {
+            int countIngresosPatios = 0;
+
+            string basePath = AppDomain.CurrentDomain.BaseDirectory;
+            string fechaCarpeta = DateTime.Now.ToString("yyyy-MM-dd");
+            string carpetaLogs = Path.Combine(basePath, fechaCarpeta);
+
+            if (!Directory.Exists(carpetaLogs))
+            {
+                Directory.CreateDirectory(carpetaLogs);
+            }
+
+            //string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{DateTime.Now.ToShortDateString()}_11_GuardaEnBDIngresosDiferidosNichosUpgrade.txt");
+            string logPath = Path.Combine(carpetaLogs, $"12_GuardaEnBDIngresosDiferidosPatios.txt_{DateTime.Now.ToShortDateString()}.txt");
+
+            using (StreamWriter logWriter12 = new StreamWriter(logPath, append: true))
+            {
+                int registrosInsertados = 0;
+                int registrosDuplicados = 0;
+
+                var clavesExistentes = await _connContext.IngresosDiferidosPatios
+                                        .Select(x => new { x.ing_pat_num_con, x.ing_pat_nro_cuota })
+                                        .ToListAsync();
+
+                var hashClaves = new HashSet<(string, int)>(
+                                    clavesExistentes.Select(c => (c.ing_pat_num_con.Trim(), c.ing_pat_nro_cuota))
+                                );
+
+                foreach (DataRow row in dtIngresosDiferidosPatios.Rows)
+                {
+                    string numCon = GetStringValue(row, "ing_pat_num_con").Trim();
+                    int nroCuota = GetIntValue(row, "ing_pat_nro_cuota");
+
+                    bool yaExiste = hashClaves.Contains((numCon, nroCuota));
+
+                    if (!yaExiste)
+                    {
+                        try
+                        {
+                            var ingresosDifPatios = new IngresosDiferidosPatios
+                            {
+                                ing_pat_num_con = GetStringValue(row, "ing_pat_num_con"),
+                                ing_pat_precio_base = GetDecimalValue(row, "ing_pat_precio_base"),
+                                ing_pat_a_diferir = GetDecimalValue(row, "ing_pat_precio_base"),
+                                ing_pat_nro_cuota = GetIntValue(row, "ing_pat_nro_cuota"),
+                                ing_pat_estado_cuota = 1,
+                                ing_pat_interes_diferido = GetDecimalValue(row, "ing_pat_interes_diferido"),
+                                ing_pat_fecha_vcto = GetDateValue(row, "ing_pat_fecha_vcto"),
+                                ing_pat_fecha_contab = GetDateValue(row, "ing_pat_fecha_contab"),
+                                ing_pat_estado_contab = GetIntValue(row, "ing_pat_estado_contab"),
+                                ing_pat_fecha = DateTime.Now                                
+                            };
+                            await _connContext.IngresosDiferidosPatios.AddAsync(ingresosDifPatios);
+                            registrosInsertados++;
+                            hashClaves.Add((numCon, nroCuota));
+                        }
+                        catch (Exception ex)
+                        {
+                            await logWriter12.WriteLineAsync($"Error al preparar datos de ingresos diferidos patios (numContrato: {GetStringValue(row, "ing_pat_num_con")}, numCuota: {GetIntValue(row, "ing_pat_nro_cuota")}) - Excepcion: {ex.Message} - {DateTime.Now}");
+                        }
+                    }
+                    else
+                    {
+                        registrosDuplicados++;
+                        _ingresosDifNichoUpgradeExistentes = registrosDuplicados;
+                        await logWriter12.WriteLineAsync(
+                            $"Registro duplicado omitido en Ingresos Diferidos Patios (numContrato: {numCon}, numCuota: {nroCuota}) - {DateTime.Now}"
+                        );
+                    }
+                }
+
+                try
+                {
+                    //guarda en la BD
+                    await _connContext.SaveChangesAsync();
+                    _ingresosDifPatiosGuardados = registrosInsertados;
+
+                    await logWriter12.WriteLineAsync(
+                        $"Ingresos diferidos patios insertados: {registrosInsertados}, duplicados omitidos: {registrosDuplicados} - {DateTime.Now}"
+                    );
+                }
+                catch (Exception ex)
+                {
+                    await logWriter12.WriteLineAsync($"Paso 12, Excepcion: {ex.Message} - {DateTime.Now}");
+                }
+
+                countIngresosPatios = _ingresosGuardados;
+                return countIngresosPatios;
+            }
+        }
         #endregion
 
         #region METODO PARA OBTENER EL ULTIMO DIA DEL MES DE UNA FECHA EN PARTICULAR
@@ -2092,9 +2299,23 @@ namespace webApiIFRS.Controllers
         #endregion
 
         #region "VALIDADORES EN CASO DE NULL O VACIO"
-        private static int GetIntValue(DataRow row, string columnName)
+        private static int GetIntValue(DataRow row, string columnName, int defaultValue = 0)
         {
-            return row[columnName] == DBNull.Value || string.IsNullOrWhiteSpace(row[columnName].ToString()) ? 0 : Convert.ToInt32(row[columnName]);
+            //return row[columnName] == DBNull.Value || string.IsNullOrWhiteSpace(row[columnName].ToString()) ? 0 : Convert.ToInt32(row[columnName]);
+            var value = row[columnName];
+
+            if (value == null || value == DBNull.Value)
+                return defaultValue;
+
+            // por si viene como string
+            var str = value.ToString();
+            if (string.IsNullOrWhiteSpace(str))
+                return defaultValue;
+
+            if (int.TryParse(str, out var result))
+                return result;
+
+            return defaultValue;
         }
 
         private static string GetStringValue(DataRow row, string columnName)
@@ -2107,10 +2328,24 @@ namespace webApiIFRS.Controllers
             return row[columnName] == DBNull.Value || string.IsNullOrWhiteSpace(row[columnName].ToString()) ? (DateTime?)null : Convert.ToDateTime(row[columnName]);
         }
 
-        private static decimal GetDecimalValue(DataRow row, string columnName)
+        private static decimal GetDecimalValue(DataRow row, string columnName, decimal defaultValue = 0m)
         {
-            if (row == null || !row.Table.Columns.Contains(columnName)) return 0m;
-            return row.Field<decimal?>(columnName) ?? 0m;
+            //if (row == null || !row.Table.Columns.Contains(columnName)) return 0m;
+            //return row.Field<decimal?>(columnName) ?? 0m;
+
+            var value = row[columnName];
+
+            if (value == null || value == DBNull.Value)
+                return defaultValue;
+
+            var str = value.ToString();
+            if (string.IsNullOrWhiteSpace(str))
+                return defaultValue;
+
+            if (decimal.TryParse(str, out var result))
+                return result;
+
+            return defaultValue;
         }
         #endregion
     }

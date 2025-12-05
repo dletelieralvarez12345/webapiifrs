@@ -33,7 +33,8 @@ namespace webApiIFRS.Models
         public DbSet<IngresosDiferidosSFT> IngresosDiferidosSFT { get; set; } = null;
         public DbSet<IngresosDiferidosBovedasPremium> IngresosDiferidosBovedasPremium { get; set; } = null;
         public DbSet<IngresosDiferidosNichosUpgrade> IngresosDiferidosNichosUpgrade { get; set; } = null;
-        public DbSet<ServiciosNUP> serviciosNUP { get; set; } = null; 
+        public DbSet<ServiciosNUP> serviciosNUP { get; set; } = null;
+        public DbSet<IngresosDiferidosPatios> IngresosDiferidosPatios { get; set; } = null; 
         #endregion
 
         #region CONFIGURA EL MODELO DE DATOS QUE EF USARÁ PARA MAPEAR LAS CLASES C# A LAS TABLAS DE LA BASE DE DATOS.
@@ -58,6 +59,14 @@ namespace webApiIFRS.Models
                       .HasPrecision(18,0)
                       .HasColumnType("decimal")
                       .ValueGeneratedNever();
+            });
+
+            modelBuilder.Entity<Contrato>(entity =>
+            {
+                entity.ToTable("CONTRATO");
+                entity.Property(e => e.con_id_cajero)
+                      .HasColumnName("CON_ID_CAJERO");
+
             });
 
             modelBuilder.Entity<IngresosDiferidosNichos>(entity =>
@@ -165,6 +174,7 @@ namespace webApiIFRS.Models
             dt.Columns.Add("con_capacidad_sepultura", typeof(int));
             dt.Columns.Add("con_tipo_compra", typeof(string));
             dt.Columns.Add("con_terminos_pago", typeof(string));
+            dt.Columns.Add("con_id_cajero", typeof(string));
             dt.Columns.Add("con_nombre_cajero", typeof(string));
             dt.Columns.Add("con_fecha_primer_vcto_ori", typeof(DateTime));
             dt.Columns.Add("con_tipo_movimiento", typeof(int));
@@ -194,6 +204,7 @@ namespace webApiIFRS.Models
                     x.con_capacidad_sepultura,
                     x.con_tipo_compra,
                     x.con_terminos_pago,
+                    x.con_id_cajero,
                     x.con_nombre_cajero,
                     (object?)x.con_fecha_primer_vcto_ori ?? "1990-01-01",
                     x.con_tipo_movimiento,
