@@ -228,6 +228,7 @@ namespace webApiIFRS.Controllers
                 dtContratos.Columns.Add("con_derechos_servicios_con_iva", typeof(decimal));
             }
 
+            /* CARGA LA COLUMNA CON_DERECHOS_SERVICIOS_CON_IVA CON EL VALOR DEL DERECHO/SERVICIO EN CASO DE TENER Y LO BUSCA EN DERECHOSSERVICIOSPORCONTRATO */
             foreach (DataRow row in dtContratos.Rows)
             {
                 var contrato = row.Field<int>("con_num_comprobante");
@@ -241,6 +242,22 @@ namespace webApiIFRS.Controllers
                     row["con_derechos_servicios_con_iva"] = 0m; 
                 }
             }
+
+            /* CARGA LA COLUMNA CON_DERECHOS_SERVICIOS_CON_IVA CON EL VALOR DEL DERECHO/SERVICIO EN CASO DE TENER Y LO BUSCA EN DERECHOSSERVICIOSPORCONTRATO */
+            foreach (DataRow rowOri in dtContratosOriginal.Rows)
+            {
+                var contrato = rowOri.Field<int>("con_num_comprobante");
+                if (contrato != 0 &&
+                    derechosServiciosPorContrato.TryGetValue(contrato, out decimal total))
+                {
+                    rowOri["con_derechos_servicios_con_iva"] = total;
+                }
+                else
+                {
+                    rowOri["con_derechos_servicios_con_iva"] = 0m;
+                }
+            }
+
 
             /*SERVICIOS DE NICHOS UPGRADE SEGUN NUMERO CONTRATO, NUMERO COMPROBANTE*/
             int? ParseInt(object v)
@@ -278,6 +295,25 @@ namespace webApiIFRS.Controllers
                     else
                     {
                         row["con_derechos_servicios_con_iva"] = 0;
+                    }
+                }
+            }
+
+            foreach (DataRow rowOri in dtContratosOriginal.Rows)
+            {
+                string numeroContrato = rowOri["con_num_con"].ToString();
+                int numeroComprobante = Convert.ToInt32(rowOri["con_num_comprobante"]);
+                int tipoIngreso = Convert.ToInt32(rowOri["con_id_tipo_ingreso"]);
+
+                if (tipoIngreso == 4)
+                {
+                    if (serviciosNupDict.TryGetValue((numeroContrato, numeroComprobante), out var totalServicios))
+                    {
+                        rowOri["con_derechos_servicios_con_iva"] = totalServicios;
+                    }
+                    else
+                    {
+                        rowOri["con_derechos_servicios_con_iva"] = 0;
                     }
                 }
             }
@@ -352,6 +388,10 @@ namespace webApiIFRS.Controllers
                     totalVenta += totalDerechos;
                     pie = totalVenta;
                     precioBaseMenosDerechos = totalVenta - totalDerechos;
+                }// para NUP el calculo de PrecioBase es totalCredito + pie - derechosServiciosCIva
+                else if(tipoIngreso == 4)
+                {
+                    precioBaseMenosDerechos = totalCredito + pie - serviciosNUP; 
                 }
                 else
                 {
@@ -393,7 +433,7 @@ namespace webApiIFRS.Controllers
                     .FirstOrDefault();
         
                 DataRow filaNew = dtContratos.NewRow();
-                string numeroComprobante = busqueda[2].ToString(); 
+                string numeroComprobante = busqueda[1].ToString(); 
                 decimal pie = decimal.Parse(busqueda[6].ToString()); 
                 int cuotasPactadas = int.Parse(busqueda[9].ToString()); 
                 decimal valorCuota = decimal.Parse(busqueda[10].ToString());
@@ -401,7 +441,8 @@ namespace webApiIFRS.Controllers
                 decimal totalDerechos = 0;
                 decimal totalCredito = decimal.Parse(busqueda[7].ToString());
                 int tipoIngreso = int.Parse(busqueda[2].ToString());
-                decimal totalVenta = pie + (cuotasPactadas * valorCuota); 
+                decimal totalVenta = pie + (cuotasPactadas * valorCuota);
+                decimal precioBaseMenosDerSerConIva = 0;
 
                 if (derechosServiciosPorContrato.TryGetValue(int.Parse(busqueda[1].ToString()), out totalDerechos))
                 {
@@ -417,13 +458,24 @@ namespace webApiIFRS.Controllers
                 {
                     totalVenta += totalDerechos;
                     pie = totalVenta;
+                    precioBaseMenosDerSerConIva = precioBase - totalDerechos;
                 }
-
+                else
                 //si tipo de ingreso es Ingreso de Patios y cuotas es igual a 0 y total credito = 0 es pago al CONTADO. 
                 if (tipoIngreso == 14 && con == numeroComprobante && cuotasPactadas == 0 && totalCredito == 0)
                 {
                     totalVenta += totalDerechos;
                     pie = totalVenta;
+                    precioBaseMenosDerSerConIva = precioBase - totalDerechos;
+                }// para NUP el calculo de PrecioBase es totalCredito + pie - derechosServiciosCIva
+                else if (tipoIngreso == 4)
+                {
+                    precioBaseMenosDerSerConIva = totalCredito + pie - totalDerechos;
+                }
+                else
+                {
+                    // precio base neto de derechos (si precioBase original incluye derechos)
+                    precioBaseMenosDerSerConIva = precioBase - totalDerechos;
                 }
 
                 /*AGREGO COLUMNA FECHA DE TERMINO DE PRODUCTO*/
@@ -436,7 +488,7 @@ namespace webApiIFRS.Controllers
                     filaNew["con_fecha_termino_producto"] = DBNull.Value;
                 }
 
-                decimal precioBaseMenosDerSerConIva = precioBase - totalDerechos; 
+                 
                 filaNew["con_num_con"] = busqueda[0].ToString();
                 filaNew["con_num_comprobante"] = busqueda[1].ToString();
                 filaNew["con_id_tipo_ingreso"] = tipoIngreso; 
