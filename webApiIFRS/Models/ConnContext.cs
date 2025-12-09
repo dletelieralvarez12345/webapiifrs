@@ -105,6 +105,7 @@ namespace webApiIFRS.Models
             dt.Columns.Add("con_capacidad_sepultura", typeof(int));
             dt.Columns.Add("con_tipo_compra", typeof(string));
             dt.Columns.Add("con_terminos_pago", typeof(string));
+            dt.Columns.Add("con_id_cajero", typeof(int));
             dt.Columns.Add("con_nombre_cajero", typeof(string));
             dt.Columns.Add("con_fecha_primer_vcto_ori", typeof(DateTime));
             dt.Columns.Add("con_tipo_movimiento", typeof(int));
@@ -134,6 +135,7 @@ namespace webApiIFRS.Models
                     x.con_capacidad_sepultura,
                     x.con_tipo_compra,
                     x.con_terminos_pago,
+                    x.con_id_cajero,
                     x.con_nombre_cajero,
                     (object?)x.con_fecha_primer_vcto_ori ?? DBNull.Value,
                     x.con_tipo_movimiento,
